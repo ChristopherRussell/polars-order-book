@@ -1,6 +1,6 @@
 use num::traits::Num;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub struct PriceLevel<Price, Qty> {
     pub is_bid: bool,
     pub price: Price,
