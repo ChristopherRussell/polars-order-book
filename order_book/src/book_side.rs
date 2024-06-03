@@ -71,7 +71,7 @@ BookSide<Price, Qty>
             hashbrown::hash_map::Entry::Occupied(o) => (FoundLevelType::Existing, o.into_mut()),
             hashbrown::hash_map::Entry::Vacant(v) => (
                 FoundLevelType::New,
-                v.insert(PriceLevel::new(self.is_bid, price)),
+                v.insert(PriceLevel::new(price)),
             ),
         }
     }
@@ -176,7 +176,7 @@ mod tests {
         book_side.add_qty(price, qty);
         assert_qty_added(&book_side, price, qty, 0, 0);
 
-        let mut expected_level = PriceLevel::new(true, price);
+        let mut expected_level = PriceLevel::new(price);
         expected_level.add_qty(qty);
         let level = book_side.levels.get(&price).unwrap();
         assert_eq!(level, &expected_level);
