@@ -134,15 +134,12 @@ fn calculate_bbo_with_modifies(
     ) {
         match tuple {
             (Some(is_bid), Some(price), Some(qty), None, None) => {
-                println!("simple: is_bid: {}, price: {}, qty: {}", is_bid, price, qty);
                 apply_simple_mutation(&mut book, is_bid, price, qty);
             }
             (Some(is_bid), Some(price), Some(qty), Some(prev_price), Some(prev_qty)) => {
-                println!("mod: is_bid: {}, price: {}, qty: {}, prev_price: {}, prev_qty: {}", is_bid, price, qty, prev_price, prev_qty);
                 book.modify_qty(is_bid, prev_price, prev_qty, price, qty)
             }
             (Some(is_bid), Some(price), Some(qty), None, Some(prev_qty)) => {
-                println!("simple mod: is_bid: {}, price: {}, qty: {}, prev_qty: {}", is_bid, price, qty, prev_qty);
                 apply_simple_mutation(&mut book, is_bid, price, qty - prev_qty);
             }
             _ => panic!("Invalid input tuple: {:?}", tuple),
