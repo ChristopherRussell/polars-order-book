@@ -20,7 +20,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("book_side_simple", |b| {
         b.iter(|| {
-            (black_box({
+            black_box({
                 for (is_bid, price, qty) in data.clone() {
                     if qty < 0 {
                         book.delete_qty(is_bid, price, qty.abs());
@@ -28,7 +28,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                         book.add_qty(is_bid, price, qty);
                     }
                 }
-            }))
+            })
         })
     });
 }

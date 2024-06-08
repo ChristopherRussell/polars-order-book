@@ -10,7 +10,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("book_side_simple", |b| {
         b.iter(|| {
-            (black_box({
+            black_box({
                 for (price, qty) in izip!(prices.into_iter(), quantities.into_iter()) {
                     if qty > 0 {
                         book.add_qty(price, qty);
@@ -19,7 +19,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                             .expect("Deleted more qty than available");
                     }
                 }
-            }))
+            })
         })
     });
 }

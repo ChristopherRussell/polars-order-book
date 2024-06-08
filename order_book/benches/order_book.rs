@@ -13,7 +13,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("order_book_simple", |b| {
         b.iter(|| {
-            (black_box({
+            black_box({
                 for (price, qty, is_bid) in izip!(
                     prices.into_iter(),
                     quantities.into_iter(),
@@ -25,7 +25,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                         book.delete_qty(is_bid, price, qty.abs());
                     }
                 }
-            }))
+            })
         })
     });
 }
