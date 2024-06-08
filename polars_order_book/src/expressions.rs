@@ -17,8 +17,7 @@ fn bbo_struct(input_fields: &[Field]) -> PolarsResult<Field> {
         Field::new("best_ask", price_field.data_type().clone()),
         Field::new("best_ask_qty", qty_field.data_type().clone()),
     ]);
-
-    Ok(Field::new("shifted", bbo_struct))
+    Ok(Field::new("bbo", bbo_struct))
 }
 
 #[polars_expr(output_type_func = bbo_struct)]
