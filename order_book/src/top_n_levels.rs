@@ -47,15 +47,19 @@ impl<Price: Ord + PartialOrd + Clone + Copy, Qty: Clone + Copy, const N: usize> 
     /// and re-order so that the array remains sorted. This function
     /// is for arrays sorted from largest to smallest, with Nones
     /// at the right.
-    fn insert_sort(&mut self, new_level: PriceLevel<Price, Qty>) {
-        let new_price = new_level.price;
+    pub fn try_insert_sort(&mut self, new_level: PriceLevel<Price, Qty>) {
         if let Some(worst_price) = self.worst_price {
-            if worst_price > new_price {
+            if worst_price > new_level.price {
                 return;
             }
         }
+        self.insert_sort(new_level);
+    }
+
+    pub fn insert_sort(&mut self, new_level: PriceLevel<Price, Qty>) {
         // TODO - optimisation: may be faster to insert at the last non-None entry, so we can
         // rotate a shorter slice.
+        let new_price = new_level.price;
         self.levels[N - 1] = Some(new_level);
         let mut insertion_point = None;
         for (i, entry) in self.levels[..N - 1].iter().enumerate() {
@@ -77,13 +81,18 @@ impl<Price: Ord + PartialOrd + Clone + Copy, Qty: Clone + Copy, const N: usize> 
     /// and re-order so that the array remains sorted. This function
     /// is for arrays sorted from smallest to largest, with Nones
     /// on the right.
-    fn insert_sort_reversed(&mut self, new_level: PriceLevel<Price, Qty>) {
+    pub fn try_insert_sort_reversed(&mut self, new_level: PriceLevel<Price, Qty>) {
         let new_price = new_level.price;
         if let Some(worst_price) = self.worst_price {
             if worst_price < new_price {
                 return;
             }
         }
+        self.insert_sort_reversed(new_level);
+    }
+
+    pub fn insert_sort_reversed(&mut self, new_level: PriceLevel<Price, Qty>) {
+        let new_price = new_level.price;
         self.levels[N - 1] = Some(new_level);
         let mut insertion_point = None;
         for (i, entry) in self.levels[..N - 1].iter().enumerate() {
@@ -104,7 +113,11 @@ impl<Price: Ord + PartialOrd + Clone + Copy, Qty: Clone + Copy, const N: usize> 
     /// Replace an existing level with a new level, and re-order so that the array remains sorted.
     /// Assumes that the array is *already sorted*, and ordered from largest to smallest, with Nones
     /// at the right. Also assumes that price_to_replace is in the array.
-    fn replace_sort(&mut self, price_to_replace: Price, new_level: Option<PriceLevel<Price, Qty>>) {
+    pub fn replace_sort(
+        &mut self,
+        price_to_replace: Price,
+        new_level: Option<PriceLevel<Price, Qty>>,
+    ) {
         for (i, entry) in self.levels.iter_mut().enumerate() {
             if let Some(level) = entry {
                 if level.price == price_to_replace {
