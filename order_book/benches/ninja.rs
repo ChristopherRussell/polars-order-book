@@ -18,7 +18,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         .map(|(f, p, q)| (f.unwrap(), p.unwrap(), q.unwrap()))
         .collect::<Vec<(bool, i64, i64)>>();
 
-    c.bench_function("book_side_simple", |b| {
+    c.bench_function("ninja_book", |b| {
         b.iter(|| {
             black_box({
                 for (is_bid, price, qty) in data.clone() {
