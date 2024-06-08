@@ -30,7 +30,11 @@ fn _pl_calculate_bbo(inputs: &[Series]) -> PolarsResult<Series> {
     match inputs.len() {
         3 | 5 => {}
         _ => {
-            let input_names = inputs.iter().map(|s| s.name()).collect::<Vec<&str>>().join(", ");
+            let input_names = inputs
+                .iter()
+                .map(|s| s.name())
+                .collect::<Vec<&str>>()
+                .join(", ");
             panic!("Expected 3 or 5 input columns: price, qty, is_bid, (prev_price, prev_qty) but got {} columns called:\n    {}", inputs.len(), input_names)
         }
     }
@@ -48,7 +52,10 @@ fn _pl_calculate_bbo(inputs: &[Series]) -> PolarsResult<Series> {
             calculate_bbo_with_modifies(price, qty, is_bid, prev_price_chunked, prev_qty_chunked)
         }
         (None, None) => calculate_bbo_from_simple_mutations(price, qty, is_bid),
-        _ => panic!("Expected both prev_price and prev_qty or neither, got: {:?} and {:?}", prev_price, prev_qty)
+        _ => panic!(
+            "Expected both prev_price and prev_qty or neither, got: {:?} and {:?}",
+            prev_price, prev_qty
+        ),
     }
 }
 
@@ -206,6 +213,7 @@ mod tests {
             .expect("Failed to add BBO struct series to DataFrame")
             .unnest(["bbo"])
             .expect("Failed to unnest BBO struct series");
+
         let expected = df! {
             "price" => [1i64, 2, 3, 4, 5, 9, 8, 7, 6],
             "qty" => [10i64, 20, 30, 40, 50, 90, 80, 70, 60],
@@ -214,8 +222,7 @@ mod tests {
             "best_bid_qty" => [10i64, 20, 30, 40, 50, 50, 50, 50, 50],
             "best_ask" => [None, None, None, None, None, Some(9i64), Some(8), Some(7), Some(6)],
             "best_ask_qty" => [None, None, None, None, None, Some(90i64), Some(80), Some(70), Some(60)],
-        }
-            .unwrap();
+        }.unwrap();
         assert_eq!(df, expected);
     }
 

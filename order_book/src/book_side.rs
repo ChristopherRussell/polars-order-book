@@ -69,10 +69,9 @@ BookSide<Price, Qty>
     ) -> (FoundLevelType, &mut PriceLevel<Price, Qty>) {
         match self.levels.entry(price) {
             hashbrown::hash_map::Entry::Occupied(o) => (FoundLevelType::Existing, o.into_mut()),
-            hashbrown::hash_map::Entry::Vacant(v) => (
-                FoundLevelType::New,
-                v.insert(PriceLevel::new(price)),
-            ),
+            hashbrown::hash_map::Entry::Vacant(v) => {
+                (FoundLevelType::New, v.insert(PriceLevel::new(price)))
+            }
         }
     }
 
