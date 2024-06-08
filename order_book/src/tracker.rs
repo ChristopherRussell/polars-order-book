@@ -51,7 +51,6 @@ impl<Price, Qty, const N: usize> TopNLevels<Price, Qty, N> {
     }
 }
 
-
 impl<Price, Qty, const N: usize> TopNLevels<Price, Qty, N>::Bids {
     fn maybe_add_level(&mut self, level: PriceLevel<Price, Qty>) {
         // 1) if space, add level

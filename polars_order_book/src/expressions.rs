@@ -17,8 +17,7 @@ fn bbo_struct(input_fields: &[Field]) -> PolarsResult<Field> {
         Field::new("best_ask", price_field.data_type().clone()),
         Field::new("best_ask_qty", qty_field.data_type().clone()),
     ]);
-
-    Ok(Field::new("shifted", bbo_struct))
+    Ok(Field::new("bbo", bbo_struct))
 }
 
 #[polars_expr(output_type_func = bbo_struct)]
@@ -30,7 +29,11 @@ fn _pl_calculate_bbo(inputs: &[Series]) -> PolarsResult<Series> {
     match inputs.len() {
         3 | 5 => {}
         _ => {
-            let input_names = inputs.iter().map(|s| s.name()).collect::<Vec<&str>>().join(", ");
+            let input_names = inputs
+                .iter()
+                .map(|s| s.name())
+                .collect::<Vec<&str>>()
+                .join(", ");
             panic!("Expected 3 or 5 input columns: price, qty, is_bid, (prev_price, prev_qty) but got {} columns called:\n    {}", inputs.len(), input_names)
         }
     }
@@ -48,7 +51,10 @@ fn _pl_calculate_bbo(inputs: &[Series]) -> PolarsResult<Series> {
             calculate_bbo_with_modifies(price, qty, is_bid, prev_price_chunked, prev_qty_chunked)
         }
         (None, None) => calculate_bbo_from_simple_mutations(price, qty, is_bid),
-        _ => panic!("Expected both prev_price and prev_qty or neither, got: {:?} and {:?}", prev_price, prev_qty)
+        _ => panic!(
+            "Expected both prev_price and prev_qty or neither, got: {:?} and {:?}",
+            prev_price, prev_qty
+        ),
     }
 }
 
@@ -99,8 +105,8 @@ fn calculate_bbo_from_simple_mutations(
         "best_ask"=>best_ask_builder.finish().into_series(),
         "best_ask_qty"=>best_ask_qty_builder.finish().into_series()
     )?
-        .into_struct("bbo")
-        .into_series();
+    .into_struct("bbo")
+    .into_series();
     Ok(result)
 }
 
@@ -162,8 +168,8 @@ fn calculate_bbo_with_modifies(
         "best_ask"=>best_ask_builder.finish().into_series(),
         "best_ask_qty"=>best_ask_qty_builder.finish().into_series()
     )?
-        .into_struct("bbo")
-        .into_series();
+    .into_struct("bbo")
+    .into_series();
     Ok(result)
 }
 
@@ -197,7 +203,7 @@ mod tests {
             "qty" => [10i64, 20, 30, 40, 50, 90, 80, 70, 60],
             "is_bid" => [true, true, true, true, true, false, false, false, false],
         }
-            .unwrap();
+        .unwrap();
         let inputs = df.get_columns();
 
         let bbo_struct = _pl_calculate_bbo(inputs).unwrap();
@@ -206,6 +212,7 @@ mod tests {
             .expect("Failed to add BBO struct series to DataFrame")
             .unnest(["bbo"])
             .expect("Failed to unnest BBO struct series");
+
         let expected = df! {
             "price" => [1i64, 2, 3, 4, 5, 9, 8, 7, 6],
             "qty" => [10i64, 20, 30, 40, 50, 90, 80, 70, 60],
@@ -214,8 +221,7 @@ mod tests {
             "best_bid_qty" => [10i64, 20, 30, 40, 50, 50, 50, 50, 50],
             "best_ask" => [None, None, None, None, None, Some(9i64), Some(8), Some(7), Some(6)],
             "best_ask_qty" => [None, None, None, None, None, Some(90i64), Some(80), Some(70), Some(60)],
-        }
-            .unwrap();
+        }.unwrap();
         assert_eq!(df, expected);
     }
 
@@ -250,5 +256,39 @@ mod tests {
         }
             .unwrap();
         assert_eq!(df, expected);
+    }
+
+    #[test]
+    fn test_calculate_bbo_with_modifies_cyclic() {
+        let mut df = df! {
+            "price" => vec![1i64, 6, 2,3,1, 5,4,6],
+            "qty" => vec![1i64, 6, 2,3,1, 5,4,6],
+            "is_bid" => vec![true, false, true, true, true, false, false, false],
+            "prev_price" => vec![None, None, Some(1i64), Some(2), Some(3), Some(6), Some(5), Some(4)],
+            "prev_qty" => vec![None, None, Some(1i64), Some(2), Some(3), Some(6), Some(5), Some(4)],
+        }.unwrap();
+
+        let inputs = df.get_columns();
+
+        let bbo_struct = _pl_calculate_bbo(inputs).unwrap();
+        let df = df
+            .with_column(bbo_struct)
+            .expect("Failed to add BBO struct series to DataFrame")
+            .unnest(["bbo"])
+            .expect("Failed to unnest BBO struct series");
+
+        let expected_values = df! {
+            "price" => vec![1, 6, 2,3,1, 5,4,6],
+            "qty" => vec![1, 6, 2,3,1, 5,4,6],
+            "is_bid" => vec![true, false, true, true, true, false, false, false],
+            "prev_price" => vec![None, None, Some(1), Some(2), Some(3), Some(6), Some(5), Some(4)],
+            "prev_qty" => vec![None, None, Some(1), Some(2), Some(3), Some(6), Some(5), Some(4)],
+            "best_bid" => vec![1, 1, 2, 3, 1, 1, 1, 1],
+            "best_bid_qty" => vec![1, 1, 2, 3, 1, 1, 1, 1],
+            "best_ask" => vec![None, Some(6), Some(6), Some(6), Some(6), Some(5), Some(4), Some(6)],
+            "best_ask_qty" => vec![None, Some(6), Some(6), Some(6), Some(6), Some(5), Some(4), Some(6)],
+        }.unwrap();
+
+        assert_eq!(df, expected_values);
     }
 }

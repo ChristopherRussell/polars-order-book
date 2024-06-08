@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-import polars as pl
 from pathlib import Path
-from polars_order_book.utils import parse_into_expr, parse_version, register_plugin
 from typing import TYPE_CHECKING
+
+import polars as pl
+
+from polars_order_book.utils import parse_into_expr, parse_version, register_plugin
 
 if TYPE_CHECKING:
     from polars.type_aliases import IntoExpr
@@ -17,11 +19,11 @@ else:
 
 
 def calculate_bbo(
-        price: IntoExpr,
-        qty: IntoExpr,
-        is_bid: IntoExpr,
-        prev_price: IntoExpr | None = None,
-        prev_qty: IntoExpr | None = None,
+    price: IntoExpr,
+    qty: IntoExpr,
+    is_bid: IntoExpr,
+    prev_price: IntoExpr | None = None,
+    prev_qty: IntoExpr | None = None,
 ) -> pl.Expr:
     price = parse_into_expr(price)
     qty = parse_into_expr(qty)
@@ -39,7 +41,7 @@ def calculate_bbo(
         )
 
     return register_plugin(
-        args=args,
+        args=args,  # type: ignore
         symbol="pl_calculate_bbo",
         is_elementwise=False,
         lib=lib,
