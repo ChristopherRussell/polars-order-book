@@ -2,3 +2,5 @@
 *.pyc
 target
 *.idea
+*.ipynb
+pyrightconfig.json
