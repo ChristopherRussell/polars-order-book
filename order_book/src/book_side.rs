@@ -45,7 +45,7 @@ pub struct BookSide<Price, Qty> {
 }
 
 impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord + Num>
-BookSide<Price, Qty>
+    BookSide<Price, Qty>
 {
     #[must_use]
     pub fn new(is_bid: bool) -> Self {
@@ -263,5 +263,66 @@ mod tests {
         assert_eq!(book_side.levels.len(), 0);
         assert_eq!(book_side.best_price, None);
         assert_eq!(book_side.best_price_qty, None);
+    }
+
+    #[test]
+    fn test_best_price_after_add_better() {
+        let mut book_side = BookSide::new(true);
+        book_side.add_qty(100, 10);
+        assert_eq!(book_side.best_price, Some(100));
+        assert_eq!(book_side.best_price_qty, Some(10));
+
+        book_side.add_qty(101, 20);
+        assert_eq!(book_side.best_price, Some(101));
+        assert_eq!(book_side.best_price_qty, Some(20));
+
+        let mut book_side = BookSide::new(false);
+        book_side.add_qty(101, 20);
+        assert_eq!(book_side.best_price, Some(101));
+        assert_eq!(book_side.best_price_qty, Some(20));
+
+        book_side.add_qty(100, 10);
+        assert_eq!(book_side.best_price, Some(100));
+        assert_eq!(book_side.best_price_qty, Some(10));
+    }
+
+    #[test]
+    fn test_best_price_modify_quantity() {
+        for is_bid in vec![true, false] {
+            let mut book_side = BookSide::new(is_bid);
+            book_side.add_qty(100, 10);
+            assert_eq!(book_side.best_price, Some(100));
+            assert_eq!(book_side.best_price_qty, Some(10));
+
+            book_side.add_qty(100, 20);
+            assert_eq!(book_side.best_price, Some(100));
+            assert_eq!(book_side.best_price_qty, Some(30));
+
+            book_side.delete_qty(100, 15).unwrap();
+            assert_eq!(book_side.best_price, Some(100));
+            assert_eq!(book_side.best_price_qty, Some(15));
+
+            book_side.delete_qty(100, 15).unwrap();
+            assert_eq!(book_side.best_price, None);
+            assert_eq!(book_side.best_price_qty, None);
+        }
+    }
+
+    #[test]
+    fn test_modify_price() {
+        let mut book_side = BookSide::new(true);
+        book_side.add_qty(100, 10);
+        assert_eq!(book_side.best_price, Some(100));
+        assert_eq!(book_side.best_price_qty, Some(10));
+
+        book_side.delete_qty(100, 10).unwrap();
+        book_side.add_qty(101, 20);
+        assert_eq!(book_side.best_price, Some(101));
+        assert_eq!(book_side.best_price_qty, Some(20));
+
+        book_side.delete_qty(101, 20).unwrap();
+        book_side.add_qty(100, 15);
+        assert_eq!(book_side.best_price, Some(100));
+        assert_eq!(book_side.best_price_qty, Some(15));
     }
 }
