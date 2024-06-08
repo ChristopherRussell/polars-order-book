@@ -131,6 +131,20 @@ impl<Price: Ord + PartialOrd + Clone + Copy, Qty: Clone + Copy, const N: usize>
             }
         }
     }
+
+    pub fn update_qty(&mut self, price: Price, new_qty: Qty) {
+        // TODO - optimisation: could check against worst qty to avoid iterating over all levels.
+        for entry in self.levels.iter_mut() {
+            if let Some(level) = entry {
+                if level.price == price {
+                    level.qty = new_qty;
+                    break;
+                } else {
+                    break;
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
