@@ -17,7 +17,6 @@ use crate::price_level::PriceLevel;
 /// ??? BookSideOpsWithTopNTracking ... do I need ths or just BookSideOps
 /// implemented on different structs (BookSide and BookSideWithTopNTracking)?
 
-
 pub struct NLevels<Price, Qty, const N: usize> {
     pub levels: [Option<PriceLevel<Price, Qty>>; N],
     pub worst_price: Option<Price>,
@@ -42,7 +41,9 @@ impl<Price, Qty, const N: usize> NLevels<Price, Qty, N> {
 /// e.g. less than 10, so that something like a binary search is not magnitudes better
 /// in the worst case.
 /// TODO: X_sort methods could be expressed more generally, i.e. without mentioning Price and Qty.
-impl<Price: Ord + PartialOrd + Clone + Copy, Qty: Clone + Copy, const N: usize> NLevels<Price, Qty, N> {
+impl<Price: Ord + PartialOrd + Clone + Copy, Qty: Clone + Copy, const N: usize>
+    NLevels<Price, Qty, N>
+{
     /// Insert a new level into the *already sorted* levels array,
     /// and re-order so that the array remains sorted. This function
     /// is for arrays sorted from largest to smallest, with Nones
@@ -191,7 +192,10 @@ mod tests {
 
         n_levels.insert_sort(PriceLevel::new(2));
         assert_eq!(n_levels.worst_price, Some(1));
-        assert_eq!(n_levels.levels, [Some(PriceLevel::new(2)), Some(PriceLevel::new(1))]);
+        assert_eq!(
+            n_levels.levels,
+            [Some(PriceLevel::new(2)), Some(PriceLevel::new(1))]
+        );
     }
 
     #[test]
