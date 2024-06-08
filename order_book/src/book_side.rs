@@ -26,16 +26,6 @@ pub enum DeleteError {
     QtyExceedsAvailable,
 }
 
-// trait BookSideOps<Price, Qty> {
-//     fn get_level(&self, price: Price) -> Option<&PriceLevel<Price, Qty>>;
-//     fn find_or_create_level(
-//         &mut self,
-//         price: Price,
-//     ) -> (FoundLevelType, &mut PriceLevel<Price, Qty>);
-//     fn add_qty(&mut self, price: Price, qty: Qty);
-//     fn delete_qty(&mut self, price: Price, qty: Qty) -> Result<(), DeleteError>;
-// }
-
 #[derive(Debug)]
 pub struct BookSide<Price, Qty> {
     is_bid: bool,
