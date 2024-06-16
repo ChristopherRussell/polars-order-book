@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn test_modify_qty() {
-        for is_bid in vec![true, false] {
+        for is_bid in [true, false] {
             let mut order_book = OrderBook::default();
             order_book.add_qty(is_bid, 100, 10);
             assert_eq!(order_book.book_side(is_bid).get_level(100).unwrap().qty, 10);
@@ -116,7 +116,7 @@ mod tests {
 
     #[test]
     fn test_modify_price() {
-        for is_bid in vec![true, false] {
+        for is_bid in [true, false] {
             let mut order_book = OrderBook::default();
             order_book.add_qty(is_bid, 1, 1);
             assert_eq!(order_book.book_side(is_bid).get_level(1).unwrap().qty, 1);
