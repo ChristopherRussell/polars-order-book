@@ -174,13 +174,14 @@ fn calculate_bbo_with_modifies(
 }
 
 fn apply_simple_mutation(book: &mut OrderBook<i64, i64>, is_bid: bool, price: i64, qty: i64) {
-    if qty > 0 {
-        book.book_side(is_bid).add_qty(price, qty)
-    } else {
-        book.book_side(is_bid)
-            .delete_qty(price, qty.abs())
-            .expect("Invalid delete qty operation - likely deleted more than available qty")
-    }
+    todo!("Handle changes to book_side when implenting tracker");
+    // if qty > 0 {
+    //     book.book_side(is_bid).add_qty(price, qty)
+    // } else {
+    //     book.book_side(is_bid)
+    //         .delete_qty(price, qty.abs())
+    //         .expect("Invalid delete qty operation - likely deleted more than available qty")
+    // }
 }
 
 fn update_builders_one_side(

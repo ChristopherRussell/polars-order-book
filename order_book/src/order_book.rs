@@ -39,7 +39,7 @@ impl<Price: Copy + Debug + Display + Hash + Ord, Qty: Copy + Debug + Display + N
     }
 
     pub fn add_qty(&mut self, is_bid: bool, price: Price, qty: Qty) {
-        self.book_side(is_bid).add_qty(price, qty)
+        self.book_side(is_bid).add_qty(price, qty);
     }
 
     pub fn modify_qty(

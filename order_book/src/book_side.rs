@@ -94,6 +94,7 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
         level.add_qty(qty);
         (found_level_type, *level)
     }
+    
     #[inline]
     pub fn delete_qty(
         &mut self,

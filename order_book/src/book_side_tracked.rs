@@ -1,20 +1,37 @@
-use num::Num;
 use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::hash::Hash;
 
-use crate::book_side::{BookSide, DeleteLevelType, FoundLevelType};
+use num::Num;
+use thiserror::Error;
+
+use crate::book_side::{BookSide, DeleteError, DeleteLevelType, FoundLevelType};
 use crate::price_level::PriceLevel;
 use crate::top_n_levels::NLevels;
 
+#[derive(Error, Debug, PartialEq, Eq)]
+pub enum TrackedBookError {
+    #[error(transparent)]
+    DeleteError(#[from] DeleteError),
+    // #[error("Qty exceeds available")]
+    // QtyExceedsAvailable,
+}
+
 trait BookSideOps<Price, Qty, const N: usize> {
-    fn add_qty(&mut self, price: Price, qty: Qty);
-    fn modify_qty(&mut self, price: Price, qty: Qty, prev_price: Price, prev_qty: Qty) {
+    fn add_qty(&mut self, price: Price, qty: Qty) -> Result<(), TrackedBookError>;
+    fn modify_qty(
+        &mut self,
+        price: Price,
+        qty: Qty,
+        prev_price: Price,
+        prev_qty: Qty,
+    ) -> Result<(), TrackedBookError> {
         self.delete_qty(prev_price, prev_qty);
         self.add_qty(price, qty);
+        Ok(())
     }
-    fn delete_qty(&mut self, price: Price, qty: Qty);
-    fn top_n(&self) -> &crate::top_n_levels::NLevels<Price, Qty, N>;
+    fn delete_qty(&mut self, price: Price, qty: Qty) -> Result<(), TrackedBookError>;
+    fn top_n(&self) -> &NLevels<Price, Qty, N>;
 }
 
 struct BookSideWithTopNTracking<Price, Qty, const N: usize> {
@@ -28,7 +45,7 @@ impl<
         const N: usize,
     > BookSideOps<Price, Qty, N> for BookSideWithTopNTracking<Price, Qty, N>
 {
-    fn add_qty(&mut self, price: Price, qty: Qty) {
+    fn add_qty(&mut self, price: Price, qty: Qty) -> Result<(), TrackedBookError> {
         let (
             found_level_type,
             PriceLevel {
@@ -46,7 +63,7 @@ impl<
             (FoundLevelType::Existing, _, Some(Ordering::Equal)) => {
                 self.top_n_levels.update_qty(added_price, added_qty);
             }
-            // New bid pirc is better than current best bid price
+            // New bid price is better than current best bid price
             (FoundLevelType::New, true, None | Some(Ordering::Less)) => {
                 self.top_n_levels.try_insert_sort(PriceLevel {
                     price: added_price,
@@ -70,10 +87,11 @@ impl<
             }
             _ => {}
         }
+        Ok(())
     }
 
-    fn delete_qty(&mut self, price: Price, qty: Qty) {
-        let (delete_type, level) = self.book_side.delete_qty(price, qty).unwrap();
+    fn delete_qty(&mut self, price: Price, qty: Qty) -> Result<(), TrackedBookError> {
+        let (delete_type, level) = self.book_side.delete_qty(price, qty)?;
         match (
             delete_type,
             self.book_side.is_bid,
@@ -98,9 +116,7 @@ impl<
             }
             _ => {}
         }
-
-        // self.top_n_levels.replace(price, qty);
-        todo!("Handle errors from book_side, replace or update, handle those errors too")
+        Ok(())
     }
 
     fn top_n(&self) -> &NLevels<Price, Qty, N> {
