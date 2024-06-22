@@ -4,3 +4,7 @@ target
 *.idea
 *.ipynb
 pyrightconfig.json
+.idea
+.pytest_cache
+.ruff_cache
+output

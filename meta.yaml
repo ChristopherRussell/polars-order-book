@@ -1,0 +1,33 @@
+package:
+  name: polars-order-book
+  version: "0.2.3"
+
+source:
+  path: ./polars_order_book
+
+build:
+  script: bash build.sh
+
+requirements:
+  build:
+    - python
+    - pip
+    - rust
+    - maturin
+    - ruff
+  host:
+    - python
+  run:
+    - python
+
+test:
+  imports:
+    - polars-order-book
+
+about:
+  license: MIT
+  summary: "A short description of your package"
+
+extra:
+  recipe-maintainers:
+    - ChristopherRussell

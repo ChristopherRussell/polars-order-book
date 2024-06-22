@@ -1,6 +1,0 @@
-[workspace]
-
-members = [
-    "order_book",
-    "polars_order_book",
-]

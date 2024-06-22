@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/prefix-dev/recipe-format/main/schema.json
+
+context: {}
+
+package:
+  name: polars-order-book
+  version: 0.2.3
+
+source:
+  path: .
+
+build:
+  script: 
+    - cargo fmt --all && cargo clippy --all-features
+    - python -m ruff check polars_order_book tests --fix --exit-non-zero-on-fix
+    - python -m ruff format polars_order_book tests
+    - python -m pip install . -vv
+  python: {}
+
+requirements:
+  host:
+  - maturin >=1.0, <2.0
+  - polars >=0.20.6
+  - python >=3.10
+  - ruff
+  - pip
+  - mypy
+  - pytest
+  run:
+  - python >=3.10
+  - polars >=0.20.6
+
+tests:
+  # - script:
+  #     - pytest tests
+  #   requirements:
+  #     run:
+  #       - python >=3.10
+  #       - pytest
+  #       - polars >=0.20.6
+  - python:
+      imports:
+        - polars_order_book
+about: {}

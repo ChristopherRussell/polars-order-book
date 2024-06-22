@@ -10,3 +10,8 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
+
+dependencies = [
+  "polars>=0.20.6",
+  "maturin>=1.0,<2.0"
+]
