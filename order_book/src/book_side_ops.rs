@@ -22,7 +22,7 @@ pub enum BookSideOpsError {
     // #[error("Qty exceeds available")]
     // QtyExceedsAvailable,
 }
-pub trait BookSideOps<Price, Qty, const N: usize> {
+pub trait BookSideOps<Price, Qty> {
     fn add_qty(&mut self, price: Price, qty: Qty) -> Result<(), BookSideOpsError>;
     fn modify_qty(
         &mut self,

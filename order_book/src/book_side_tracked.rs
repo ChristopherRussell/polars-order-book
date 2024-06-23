@@ -9,7 +9,6 @@ use crate::book_side_ops::{BookSideOps, BookSideOpsError};
 use crate::price_level::PriceLevel;
 use crate::top_n_levels::NLevels;
 
-
 pub struct BookSideWithTopNTracking<Price, Qty, const N: usize> {
     book_side: BookSide<Price, Qty>,
     top_n_levels: NLevels<Price, Qty, N>,
@@ -24,13 +23,17 @@ impl<Price: Ord + Hash + Copy + Debug, Qty: Num + Ord + Debug + Copy, const N: u
             top_n_levels: NLevels::new(),
         }
     }
+
+    pub fn get_nth_best_level(&self) -> Option<PriceLevel<Price, Qty>> {
+        self.book_side.get_nth_best_level(N)
+    }
 }
 
 impl<
         Price: Debug + Eq + Ord + Copy + Hash,
         Qty: Debug + Ord + Clone + Copy + Num,
         const N: usize,
-    > BookSideOps<Price, Qty, N> for BookSideWithTopNTracking<Price, Qty, N>
+    > BookSideOps<Price, Qty> for BookSideWithTopNTracking<Price, Qty, N>
 {
     fn add_qty(&mut self, price: Price, qty: Qty) -> Result<(), BookSideOpsError> {
         let (
@@ -81,7 +84,7 @@ impl<
             }
             // Tracked level delete, find next best level and replace
             (DeleteLevelType::Deleted, _, _) => {
-                let best_untracked_level = self.book_side.get_nth_best_level(N);
+                let best_untracked_level = self.get_nth_best_level();
                 self.top_n_levels
                     .replace_sort(level.price, best_untracked_level);
             }
