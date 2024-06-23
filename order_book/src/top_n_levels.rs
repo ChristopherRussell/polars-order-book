@@ -26,8 +26,10 @@ impl<Price, Qty, const N: usize> NLevels<Price, Qty, N> {
     pub(crate) fn new() -> Self {
         Self::default()
     }
+}
 
-    pub fn default() -> Self {
+impl<Price, Qty, const N: usize> Default for NLevels<Price, Qty, N> {
+    fn default() -> Self {
         assert!(N > 0, "TopNLevels: N must be greater than 0");
         NLevels {
             levels: core::array::from_fn(|_| None), // Avoids PriceLevel requiring Copy trait
@@ -146,14 +148,10 @@ impl<Price: Ord + PartialOrd + Clone + Copy, Qty: Clone + Copy, const N: usize>
 
     pub fn update_qty(&mut self, price: Price, new_qty: Qty) {
         // TODO - optimisation: could check against worst qty to avoid iterating over all levels.
-        for entry in self.levels.iter_mut() {
-            if let Some(level) = entry {
-                if level.price == price {
-                    level.qty = new_qty;
-                    break;
-                } else {
-                    break;
-                }
+        for level in self.levels.iter_mut().flatten() {
+            if level.price == price {
+                level.qty = new_qty;
+                break;
             }
         }
     }
