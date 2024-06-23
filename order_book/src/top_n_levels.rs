@@ -23,16 +23,28 @@ pub struct NLevels<Price, Qty, const N: usize> {
 }
 
 impl<Price, Qty, const N: usize> NLevels<Price, Qty, N> {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self::default()
     }
 
-    fn default() -> Self {
+    pub fn default() -> Self {
         assert!(N > 0, "TopNLevels: N must be greater than 0");
         NLevels {
             levels: core::array::from_fn(|_| None), // Avoids PriceLevel requiring Copy trait
             worst_price: None,
         }
+    }
+}
+impl<Price: Copy, Qty: Copy, const N: usize> NLevels<Price, Qty, N> {
+    pub fn best_level(&self) -> Option<&PriceLevel<Price, Qty>> {
+        self.levels[0].as_ref()
+    }
+    pub fn best_price(&self) -> Option<Price> {
+        self.best_level().map(|level| level.price)
+    }
+
+    pub fn best_price_qty(&self) -> Option<Qty> {
+        self.best_level().map(|level| level.qty)
     }
 }
 
@@ -252,7 +264,7 @@ mod tests {
     }
 
     #[test]
-    fn test_level_below_worst_does_not_insert() {
+    pub fn test_level_below_worst_does_not_insert() {
         let mut n_levels = get_full_n_level();
         let level: PriceLevel<i32, i32> = PriceLevel::new(1);
         n_levels.insert_sort(level);

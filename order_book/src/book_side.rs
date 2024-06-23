@@ -35,9 +35,7 @@ pub enum DeleteError {
 #[derive(Debug)]
 pub struct BookSide<Price, Qty> {
     pub is_bid: bool,
-    levels: HashMap<Price, PriceLevel<Price, Qty>>,
-    pub best_price: Option<Price>,
-    pub best_price_qty: Option<Qty>,
+    pub levels: HashMap<Price, PriceLevel<Price, Qty>>,
 }
 
 impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord + Num>
@@ -48,8 +46,6 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
         BookSide {
             is_bid,
             levels: HashMap::new(),
-            best_price: None,
-            best_price_qty: None,
         }
     }
 
@@ -94,7 +90,7 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
         level.add_qty(qty);
         (found_level_type, *level)
     }
-    
+
     #[inline]
     pub fn delete_qty(
         &mut self,
@@ -106,7 +102,7 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
             .get_mut(&price)
             .ok_or(LevelError::LevelNotFound)?;
         match level.qty.cmp(&qty) {
-            std::cmp::Ordering::Less => return Err(DeleteError::QtyExceedsAvailable),
+            std::cmp::Ordering::Less => Err(DeleteError::QtyExceedsAvailable),
             std::cmp::Ordering::Equal => {
                 let deleted_level = self.levels.remove(&price).unwrap();
                 Ok((DeleteLevelType::Deleted, deleted_level))
@@ -115,15 +111,6 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
                 level.delete_qty(qty);
                 Ok((DeleteLevelType::QuantityDecreased, *level))
             }
-        }
-    }
-
-    #[inline]
-    pub fn get_best_price_level(&self) -> Option<&PriceLevel<Price, Qty>> {
-        if self.is_bid {
-            self.levels.values().max_by_key(|l| l.price)
-        } else {
-            self.levels.values().min_by_key(|l| l.price)
         }
     }
 }
@@ -154,16 +141,12 @@ mod tests {
 
     #[test]
     fn test_add_qty_to_empty_book() {
-        for is_bid in vec![false, true] {
+        for is_bid in [false, true] {
             let qty = 5;
             let price = 100;
             let mut book_side = BookSide::new(is_bid);
-            assert_eq!(book_side.best_price, None);
-            assert_eq!(book_side.best_price_qty, None);
             book_side.add_qty(price, qty);
             assert_qty_added(&book_side, price, qty, 0, 0);
-            assert_eq!(book_side.best_price, Some(price));
-            assert_eq!(book_side.best_price_qty, Some(qty));
         }
     }
 
@@ -221,73 +204,7 @@ mod tests {
         let mut book_side = BookSide::new(true);
         let (price, qty) = (100, 10);
         book_side.add_qty(price, qty);
-        assert_eq!(book_side.best_price, Some(price));
-        assert_eq!(book_side.best_price_qty, Some(qty));
-
         book_side.delete_qty(price, qty).unwrap();
         assert_eq!(book_side.levels.len(), 0);
-        assert_eq!(book_side.best_price, None);
-        assert_eq!(book_side.best_price_qty, None);
-    }
-
-    #[test]
-    fn test_best_price_after_add_better() {
-        let mut book_side = BookSide::new(true);
-        book_side.add_qty(100, 10);
-        assert_eq!(book_side.best_price, Some(100));
-        assert_eq!(book_side.best_price_qty, Some(10));
-
-        book_side.add_qty(101, 20);
-        assert_eq!(book_side.best_price, Some(101));
-        assert_eq!(book_side.best_price_qty, Some(20));
-
-        let mut book_side = BookSide::new(false);
-        book_side.add_qty(101, 20);
-        assert_eq!(book_side.best_price, Some(101));
-        assert_eq!(book_side.best_price_qty, Some(20));
-
-        book_side.add_qty(100, 10);
-        assert_eq!(book_side.best_price, Some(100));
-        assert_eq!(book_side.best_price_qty, Some(10));
-    }
-
-    #[test]
-    fn test_best_price_modify_quantity() {
-        for is_bid in vec![true, false] {
-            let mut book_side = BookSide::new(is_bid);
-            book_side.add_qty(100, 10);
-            assert_eq!(book_side.best_price, Some(100));
-            assert_eq!(book_side.best_price_qty, Some(10));
-
-            book_side.add_qty(100, 20);
-            assert_eq!(book_side.best_price, Some(100));
-            assert_eq!(book_side.best_price_qty, Some(30));
-
-            book_side.delete_qty(100, 15).unwrap();
-            assert_eq!(book_side.best_price, Some(100));
-            assert_eq!(book_side.best_price_qty, Some(15));
-
-            book_side.delete_qty(100, 15).unwrap();
-            assert_eq!(book_side.best_price, None);
-            assert_eq!(book_side.best_price_qty, None);
-        }
-    }
-
-    #[test]
-    fn test_modify_price() {
-        let mut book_side = BookSide::new(true);
-        book_side.add_qty(100, 10);
-        assert_eq!(book_side.best_price, Some(100));
-        assert_eq!(book_side.best_price_qty, Some(10));
-
-        book_side.delete_qty(100, 10).unwrap();
-        book_side.add_qty(101, 20);
-        assert_eq!(book_side.best_price, Some(101));
-        assert_eq!(book_side.best_price_qty, Some(20));
-
-        book_side.delete_qty(101, 20).unwrap();
-        book_side.add_qty(100, 15);
-        assert_eq!(book_side.best_price, Some(100));
-        assert_eq!(book_side.best_price_qty, Some(15));
     }
 }
