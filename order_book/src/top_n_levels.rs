@@ -175,12 +175,12 @@ mod tests {
     fn test_insert() {
         let mut n_levels = NLevels::<i32, i32, 5>::default();
         let level = PriceLevel::new(1);
-        n_levels.insert_sort(level);
+        n_levels.try_insert_sort(level);
         assert_eq!(n_levels.levels[0], Some(level));
 
         let mut n_levels = NLevels::<i32, i32, 5>::default();
         let level = PriceLevel::new(1);
-        n_levels.insert_sort_reversed(level);
+        n_levels.try_insert_sort_reversed(level);
         assert_eq!(n_levels.levels[0], Some(level));
     }
 
@@ -192,7 +192,7 @@ mod tests {
         let mut n_levels = NLevels::<i32, i32, 5>::default();
         for i in 1..6 {
             let level = PriceLevel::new(i * 2);
-            n_levels.insert_sort(level);
+            n_levels.try_insert_sort(level);
         }
         assert_eq!(n_levels.levels, get_price_levels(true, [10, 8, 6, 4, 2]));
         n_levels
@@ -202,7 +202,7 @@ mod tests {
         let mut n_levels = NLevels::<i32, i32, 5>::default();
         for i in 1..6 {
             let level = PriceLevel::new(i * 2);
-            n_levels.insert_sort_reversed(level);
+            n_levels.try_insert_sort_reversed(level);
         }
         assert_eq!(n_levels.levels, get_price_levels(false, [2, 4, 6, 8, 10]));
         n_levels
@@ -212,11 +212,11 @@ mod tests {
     fn test_add_level_when_not_full() {
         let mut n_levels = NLevels::<i32, i32, 2>::default();
         let level: PriceLevel<i32, i32> = PriceLevel::new(1);
-        n_levels.insert_sort(level);
+        n_levels.try_insert_sort(level);
         assert_eq!(n_levels.worst_price, None);
         assert_eq!(n_levels.levels, [Some(PriceLevel::new(1)), None]);
 
-        n_levels.insert_sort(PriceLevel::new(2));
+        n_levels.try_insert_sort(PriceLevel::new(2));
         assert_eq!(n_levels.worst_price, Some(1));
         assert_eq!(
             n_levels.levels,
@@ -228,53 +228,63 @@ mod tests {
     fn test_add_level_when_full() {
         let mut n_levels = get_full_n_level();
         let level: PriceLevel<i32, i32> = PriceLevel::new(12);
-        n_levels.insert_sort(level);
+        n_levels.try_insert_sort(level);
         assert_eq!(n_levels.levels, get_price_levels(true, [12, 10, 8, 6, 4]));
         assert_eq!(n_levels.worst_price, Some(4));
 
         let mut n_levels = get_full_n_level();
         let level: PriceLevel<i32, i32> = PriceLevel::new(5);
-        n_levels.insert_sort(level);
+        n_levels.try_insert_sort(level);
         assert_eq!(n_levels.levels, get_price_levels(true, [10, 8, 6, 5, 4]));
         assert_eq!(n_levels.worst_price, Some(4));
 
         let mut n_levels = get_full_n_level();
         let level: PriceLevel<i32, i32> = PriceLevel::new(3);
-        n_levels.insert_sort(level);
+        n_levels.try_insert_sort(level);
         assert_eq!(n_levels.levels, get_price_levels(true, [10, 8, 6, 4, 3]));
         assert_eq!(n_levels.worst_price, Some(3));
 
         let mut n_levels = get_full_n_level_reversed();
         let level: PriceLevel<i32, i32> = PriceLevel::new(1);
-        n_levels.insert_sort_reversed(level);
+        n_levels.try_insert_sort_reversed(level);
         assert_eq!(n_levels.levels, get_price_levels(false, [1, 2, 4, 6, 8]));
         assert_eq!(n_levels.worst_price, Some(8));
 
         let mut n_levels = get_full_n_level_reversed();
         let level: PriceLevel<i32, i32> = PriceLevel::new(3);
-        n_levels.insert_sort_reversed(level);
+        n_levels.try_insert_sort_reversed(level);
         assert_eq!(n_levels.levels, get_price_levels(false, [2, 3, 4, 6, 8]));
         assert_eq!(n_levels.worst_price, Some(8));
 
         let mut n_levels = get_full_n_level_reversed();
         let level: PriceLevel<i32, i32> = PriceLevel::new(9);
-        n_levels.insert_sort_reversed(level);
+        n_levels.try_insert_sort_reversed(level);
         assert_eq!(n_levels.levels, get_price_levels(false, [2, 4, 6, 8, 9]));
         assert_eq!(n_levels.worst_price, Some(9));
     }
 
     #[test]
-    pub fn test_level_below_worst_does_not_insert() {
+    pub fn test_try_insert_level_below_worst() {
+        // try_insert_sort checks if level is better than worst, so should not insert
+        // insert_sort does not check if level is better than worst, so will insert
         let mut n_levels = get_full_n_level();
         let level: PriceLevel<i32, i32> = PriceLevel::new(1);
-        n_levels.insert_sort(level);
+        n_levels.try_insert_sort(level);
         assert_eq!(n_levels.levels, get_price_levels(true, [10, 8, 6, 4, 2]));
         assert_eq!(n_levels.worst_price, Some(2));
 
+        n_levels.insert_sort(level);
+        assert_eq!(n_levels.levels, get_price_levels(true, [10, 8, 6, 4, 1]));
+        assert_eq!(n_levels.worst_price, Some(1));
+
         let mut n_levels = get_full_n_level_reversed();
         let level: PriceLevel<i32, i32> = PriceLevel::new(12);
-        n_levels.insert_sort_reversed(level);
+        n_levels.try_insert_sort_reversed(level);
         assert_eq!(n_levels.levels, get_price_levels(false, [2, 4, 6, 8, 10]));
         assert_eq!(n_levels.worst_price, Some(10));
+        
+        n_levels.insert_sort_reversed(level);
+        assert_eq!(n_levels.levels, get_price_levels(false, [2, 4, 6, 8, 12]));
+        assert_eq!(n_levels.worst_price, Some(12));
     }
 }
