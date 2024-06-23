@@ -31,7 +31,6 @@ trait BookSideOps<Price, Qty, const N: usize> {
         Ok(())
     }
     fn delete_qty(&mut self, price: Price, qty: Qty) -> Result<(), TrackedBookError>;
-    fn top_n(&self) -> &NLevels<Price, Qty, N>;
 }
 
 pub struct BookSideWithTopNTracking<Price, Qty, const N: usize> {
@@ -111,10 +110,6 @@ impl<
             }
         }
         Ok(())
-    }
-
-    fn top_n(&self) -> &NLevels<Price, Qty, N> {
-        &self.top_n_levels
     }
 }
 
