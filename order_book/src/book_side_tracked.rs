@@ -3,35 +3,12 @@ use std::fmt::Debug;
 use std::hash::Hash;
 
 use num::Num;
-use thiserror::Error;
 
-use crate::book_side::{BookSide, DeleteError, DeleteLevelType, FoundLevelType};
+use crate::book_side::{BookSide, DeleteLevelType, FoundLevelType};
+use crate::book_side_ops::{BookSideOps, BookSideOpsError};
 use crate::price_level::PriceLevel;
 use crate::top_n_levels::NLevels;
 
-#[derive(Error, Debug, PartialEq, Eq)]
-pub enum TrackedBookError {
-    #[error(transparent)]
-    DeleteError(#[from] DeleteError),
-    // #[error("Qty exceeds available")]
-    // QtyExceedsAvailable,
-}
-
-trait BookSideOps<Price, Qty, const N: usize> {
-    fn add_qty(&mut self, price: Price, qty: Qty) -> Result<(), TrackedBookError>;
-    fn modify_qty(
-        &mut self,
-        price: Price,
-        qty: Qty,
-        prev_price: Price,
-        prev_qty: Qty,
-    ) -> Result<(), TrackedBookError> {
-        self.delete_qty(prev_price, prev_qty)?;
-        self.add_qty(price, qty)?;
-        Ok(())
-    }
-    fn delete_qty(&mut self, price: Price, qty: Qty) -> Result<(), TrackedBookError>;
-}
 
 pub struct BookSideWithTopNTracking<Price, Qty, const N: usize> {
     book_side: BookSide<Price, Qty>,
@@ -55,7 +32,7 @@ impl<
         const N: usize,
     > BookSideOps<Price, Qty, N> for BookSideWithTopNTracking<Price, Qty, N>
 {
-    fn add_qty(&mut self, price: Price, qty: Qty) -> Result<(), TrackedBookError> {
+    fn add_qty(&mut self, price: Price, qty: Qty) -> Result<(), BookSideOpsError> {
         let (
             found_level_type,
             PriceLevel {
@@ -89,7 +66,7 @@ impl<
         Ok(())
     }
 
-    fn delete_qty(&mut self, price: Price, qty: Qty) -> Result<(), TrackedBookError> {
+    fn delete_qty(&mut self, price: Price, qty: Qty) -> Result<(), BookSideOpsError> {
         let (delete_type, level) = self.book_side.delete_qty(price, qty)?;
         match (
             delete_type,

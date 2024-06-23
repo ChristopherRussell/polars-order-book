@@ -4,7 +4,8 @@ use std::hash::Hash;
 use hashbrown::HashMap;
 use itertools::Itertools;
 use num::traits::Num;
-use thiserror::Error;
+
+use crate::book_side_ops::{DeleteError, LevelError};
 
 use super::price_level::PriceLevel;
 
@@ -16,20 +17,6 @@ pub enum FoundLevelType {
 pub enum DeleteLevelType {
     Deleted,
     QuantityDecreased,
-}
-
-#[derive(Error, Debug, PartialEq, Eq)]
-pub enum LevelError {
-    #[error("Level not found")]
-    LevelNotFound,
-}
-
-#[derive(Error, Debug, PartialEq, Eq)]
-pub enum DeleteError {
-    #[error(transparent)]
-    LevelError(#[from] LevelError),
-    #[error("Qty exceeds available")]
-    QtyExceedsAvailable,
 }
 
 #[derive(Debug)]
