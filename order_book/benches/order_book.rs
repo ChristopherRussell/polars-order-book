@@ -3,14 +3,13 @@ use itertools::izip;
 
 use order_book::order_book::OrderBook;
 
-pub fn criterion_benchmark(c: &mut Criterion) {
+pub fn order_book_simple(c: &mut Criterion) {
     let mut book = black_box(OrderBook::new());
     let prices = [1i64, 2, 3, 6, 5, 4, 3, 1, 2, 5, 4, 6];
     let quantities = [1i64, 2, 3, 6, 5, 4, -3, -1, -2, -5, -4, -6];
     let is_bid = [
         true, true, true, false, false, false, true, true, true, false, false, false,
     ];
-
     c.bench_function("order_book_simple", |b| {
         b.iter(|| {
             black_box({
@@ -30,5 +29,5 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, criterion_benchmark);
+criterion_group!(benches, order_book_simple);
 criterion_main!(benches);

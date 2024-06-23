@@ -1,10 +1,10 @@
+use anyhow::Context;
+use num::traits::Num;
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 
-use anyhow::Context;
-use num::traits::Num;
-
 use crate::book_side::BookSide;
+use crate::book_side_ops::BookSideOps;
 
 pub struct OrderBook<Price, Qty> {
     bids: BookSide<Price, Qty>,
@@ -39,7 +39,7 @@ impl<Price: Copy + Debug + Display + Hash + Ord, Qty: Copy + Debug + Display + N
     }
 
     pub fn add_qty(&mut self, is_bid: bool, price: Price, qty: Qty) {
-        self.book_side(is_bid).add_qty(price, qty)
+        self.book_side(is_bid).add_qty(price, qty);
     }
 
     pub fn modify_qty(
@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn test_modify_qty() {
-        for is_bid in vec![true, false] {
+        for is_bid in [true, false] {
             let mut order_book = OrderBook::default();
             order_book.add_qty(is_bid, 100, 10);
             assert_eq!(order_book.book_side(is_bid).get_level(100).unwrap().qty, 10);
@@ -116,7 +116,7 @@ mod tests {
 
     #[test]
     fn test_modify_price() {
-        for is_bid in vec![true, false] {
+        for is_bid in [true, false] {
             let mut order_book = OrderBook::default();
             order_book.add_qty(is_bid, 1, 1);
             assert_eq!(order_book.book_side(is_bid).get_level(1).unwrap().qty, 1);
