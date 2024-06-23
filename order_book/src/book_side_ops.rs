@@ -1,5 +1,8 @@
 use thiserror::Error;
 
+use crate::book_side::{DeleteLevelType, FoundLevelType};
+use crate::price_level::PriceLevel;
+
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum LevelError {
     #[error("Level not found")]
@@ -14,7 +17,6 @@ pub enum DeleteError {
     QtyExceedsAvailable,
 }
 
-
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum BookSideOpsError {
     #[error(transparent)]
@@ -23,17 +25,20 @@ pub enum BookSideOpsError {
     // QtyExceedsAvailable,
 }
 pub trait BookSideOps<Price, Qty> {
-    fn add_qty(&mut self, price: Price, qty: Qty) -> Result<(), BookSideOpsError>;
+    fn add_qty(&mut self, price: Price, qty: Qty) -> (FoundLevelType, PriceLevel<Price, Qty>);
     fn modify_qty(
         &mut self,
         price: Price,
         qty: Qty,
         prev_price: Price,
         prev_qty: Qty,
-    ) -> Result<(), BookSideOpsError> {
+    ) -> Result<(FoundLevelType, PriceLevel<Price, Qty>), BookSideOpsError> {
         self.delete_qty(prev_price, prev_qty)?;
-        self.add_qty(price, qty)?;
-        Ok(())
+        Ok(self.add_qty(price, qty))
     }
-    fn delete_qty(&mut self, price: Price, qty: Qty) -> Result<(), BookSideOpsError>;
+    fn delete_qty(
+        &mut self,
+        price: Price,
+        qty: Qty,
+    ) -> Result<(DeleteLevelType, PriceLevel<Price, Qty>), BookSideOpsError>;
 }

@@ -35,12 +35,12 @@ impl<
         const N: usize,
     > BookSideOps<Price, Qty> for BookSideWithTopNTracking<Price, Qty, N>
 {
-    fn add_qty(&mut self, price: Price, qty: Qty) -> Result<(), BookSideOpsError> {
+    fn add_qty(&mut self, price: Price, qty: Qty) -> (FoundLevelType, PriceLevel<Price, Qty>) {
         let (
             found_level_type,
             PriceLevel {
                 price: added_price,
-                qty: added_qty,
+                qty: added_qty, // TODO: this name is deceptive, it's total qty not the change
             },
         ) = self.book_side.add_qty(price, qty);
 
@@ -66,10 +66,20 @@ impl<
                 qty: added_qty,
             }),
         }
-        Ok(())
+        (
+            found_level_type,
+            PriceLevel {
+                price: added_price,
+                qty: added_qty,
+            },
+        )
     }
 
-    fn delete_qty(&mut self, price: Price, qty: Qty) -> Result<(), BookSideOpsError> {
+    fn delete_qty(
+        &mut self,
+        price: Price,
+        qty: Qty,
+    ) -> Result<(DeleteLevelType, PriceLevel<Price, Qty>), BookSideOpsError> {
         let (delete_type, level) = self.book_side.delete_qty(price, qty)?;
         match (
             delete_type,
@@ -89,7 +99,7 @@ impl<
                     .replace_sort(level.price, best_untracked_level);
             }
         }
-        Ok(())
+        Ok((delete_type, level))
     }
 }
 
@@ -111,7 +121,7 @@ mod tests {
     fn test_delete_qty() {
         let mut book_side = BookSideWithTopNTracking::<i32, i32, 3>::new(true);
         let (price, qty) = (100, 10);
-        book_side.add_qty(price, qty).unwrap();
+        book_side.add_qty(price, qty);
         assert_eq!(book_side.best_price(), Some(price));
         assert_eq!(book_side.best_price_qty(), Some(qty));
 
@@ -124,20 +134,20 @@ mod tests {
     #[test]
     fn test_best_price_after_add_better() {
         let mut book_side = BookSideWithTopNTracking::<i32, i32, 3>::new(true);
-        book_side.add_qty(100, 10).unwrap();
+        book_side.add_qty(100, 10);
         assert_eq!(book_side.best_price(), Some(100));
         assert_eq!(book_side.best_price_qty(), Some(10));
 
-        book_side.add_qty(101, 20).unwrap();
+        book_side.add_qty(101, 20);
         assert_eq!(book_side.best_price(), Some(101));
         assert_eq!(book_side.best_price_qty(), Some(20));
 
         let mut book_side = BookSideWithTopNTracking::<i32, i32, 3>::new(false);
-        book_side.add_qty(101, 20).unwrap();
+        book_side.add_qty(101, 20);
         assert_eq!(book_side.best_price(), Some(101));
         assert_eq!(book_side.best_price_qty(), Some(20));
 
-        book_side.add_qty(100, 10).unwrap();
+        book_side.add_qty(100, 10);
         assert_eq!(book_side.best_price(), Some(100));
         assert_eq!(book_side.best_price_qty(), Some(10));
     }
@@ -146,11 +156,11 @@ mod tests {
     fn test_best_price_modify_quantity() {
         for is_bid in [true, false] {
             let mut book_side = BookSideWithTopNTracking::<i32, i32, 3>::new(is_bid);
-            book_side.add_qty(100, 10).unwrap();
+            book_side.add_qty(100, 10);
             assert_eq!(book_side.best_price(), Some(100));
             assert_eq!(book_side.best_price_qty(), Some(10));
 
-            book_side.add_qty(100, 20).unwrap();
+            book_side.add_qty(100, 20);
             assert_eq!(book_side.best_price(), Some(100));
             assert_eq!(book_side.best_price_qty(), Some(30));
 
@@ -167,17 +177,17 @@ mod tests {
     #[test]
     fn test_modify_price() {
         let mut book_side = BookSideWithTopNTracking::<i32, i32, 3>::new(true);
-        book_side.add_qty(100, 10).unwrap();
+        book_side.add_qty(100, 10);
         assert_eq!(book_side.best_price(), Some(100));
         assert_eq!(book_side.best_price_qty(), Some(10));
 
         book_side.delete_qty(100, 10).unwrap();
-        book_side.add_qty(101, 20).unwrap();
+        book_side.add_qty(101, 20);
         assert_eq!(book_side.best_price(), Some(101));
         assert_eq!(book_side.best_price_qty(), Some(20));
 
         book_side.delete_qty(101, 20).unwrap();
-        book_side.add_qty(100, 15).unwrap();
+        book_side.add_qty(100, 15);
         assert_eq!(book_side.best_price(), Some(100));
         assert_eq!(book_side.best_price_qty(), Some(15));
     }

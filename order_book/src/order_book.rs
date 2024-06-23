@@ -1,10 +1,10 @@
+use anyhow::Context;
+use num::traits::Num;
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 
-use anyhow::Context;
-use num::traits::Num;
-
 use crate::book_side::BookSide;
+use crate::book_side_ops::BookSideOps;
 
 pub struct OrderBook<Price, Qty> {
     bids: BookSide<Price, Qty>,

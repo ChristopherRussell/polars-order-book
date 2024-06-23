@@ -5,15 +5,17 @@ use hashbrown::HashMap;
 use itertools::Itertools;
 use num::traits::Num;
 
-use crate::book_side_ops::{DeleteError, LevelError};
+use crate::book_side_ops::{BookSideOps, BookSideOpsError, DeleteError, LevelError};
 
 use super::price_level::PriceLevel;
 
+#[derive(Clone, Copy)]
 pub enum FoundLevelType {
     New,
     Existing,
 }
 
+#[derive(Clone, Copy)]
 pub enum DeleteLevelType {
     Deleted,
     QuantityDecreased,
@@ -70,26 +72,32 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
             }
         }
     }
+}
 
+impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord + Num>
+    BookSideOps<Price, Qty> for BookSide<Price, Qty>
+{
     #[inline]
-    pub fn add_qty(&mut self, price: Price, qty: Qty) -> (FoundLevelType, PriceLevel<Price, Qty>) {
+    fn add_qty(&mut self, price: Price, qty: Qty) -> (FoundLevelType, PriceLevel<Price, Qty>) {
         let (found_level_type, level) = self.find_or_create_level(price);
         level.add_qty(qty);
         (found_level_type, *level)
     }
 
     #[inline]
-    pub fn delete_qty(
+    fn delete_qty(
         &mut self,
         price: Price,
         qty: Qty,
-    ) -> Result<(DeleteLevelType, PriceLevel<Price, Qty>), DeleteError> {
-        let level = self
-            .levels
-            .get_mut(&price)
-            .ok_or(LevelError::LevelNotFound)?;
+    ) -> Result<(DeleteLevelType, PriceLevel<Price, Qty>), BookSideOpsError> {
+        let level =
+            self.levels
+                .get_mut(&price)
+                .ok_or(BookSideOpsError::from(DeleteError::from(
+                    LevelError::LevelNotFound,
+                )))?;
         match level.qty.cmp(&qty) {
-            std::cmp::Ordering::Less => Err(DeleteError::QtyExceedsAvailable),
+            std::cmp::Ordering::Less => Err(DeleteError::QtyExceedsAvailable.into()),
             std::cmp::Ordering::Equal => {
                 let deleted_level = self.levels.remove(&price).unwrap();
                 Ok((DeleteLevelType::Deleted, deleted_level))
