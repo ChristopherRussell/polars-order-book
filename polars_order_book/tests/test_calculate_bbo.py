@@ -5,8 +5,9 @@ from polars.testing.asserts import assert_frame_equal
 from polars_order_book import calculate_bbo
 
 
+@pytest.mark.parametrize("nr_tracked_levels", [1, 2, 4])
 @pytest.mark.parametrize("n", [1, 10, 100, 1000])
-def test_calculate_bbo(n: int):
+def test_calculate_bbo(n: int, nr_tracked_levels: int):
     market_data = pl.DataFrame(
         {
             "id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] * n,
@@ -36,15 +37,15 @@ def test_calculate_bbo(n: int):
         },
     )
     market_data = market_data.with_columns(
-        bbo=calculate_bbo("price", "qty", "is_bid")
+        bbo=calculate_bbo("price", "qty", "is_bid", n=nr_tracked_levels)
     ).unnest("bbo")
 
     expected_values = {
         "id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-        "best_bid": [1, 2, 3, 3, 3, 3, 2, 2, None, None, None, None],
-        "best_ask": [None, None, None, 6, 5, 4, 4, 4, 4, 4, 6, None],
-        "best_bid_qty": [1, 2, 3, 3, 3, 3, 2, 2, None, None, None, None],
-        "best_ask_qty": [None, None, None, 6, 5, 4, 4, 4, 4, 4, 6, None],
+        "bid_price_1": [1, 2, 3, 3, 3, 3, 2, 2, None, None, None, None],
+        "ask_price_1": [None, None, None, 6, 5, 4, 4, 4, 4, 4, 6, None],
+        "bid_qty_1": [1, 2, 3, 3, 3, 3, 2, 2, None, None, None, None],
+        "ask_qty_1": [None, None, None, 6, 5, 4, 4, 4, 4, 4, 6, None],
     }
     expected = pl.DataFrame(
         expected_values,
@@ -54,15 +55,16 @@ def test_calculate_bbo(n: int):
 
     assert_frame_equal(
         market_data.select(
-            "id", "best_bid", "best_ask", "best_bid_qty", "best_ask_qty"
+            "id", "bid_price_1", "ask_price_1", "bid_qty_1", "ask_qty_1"
         ),
         expected,
         check_column_order=False,
     )
 
 
+@pytest.mark.parametrize("nr_tracked_levels", [1, 2, 4])
 @pytest.mark.parametrize("n", [1, 10, 100, 1000])
-def test_calculate_bbo_with_mods(n: int):
+def test_calculate_bbo_with_mods(n: int, nr_tracked_levels: int):
     market_data = pl.DataFrame(
         {
             "id": [-2, -1] + [1, 2, 3, 4, 5, 6] * n,
@@ -92,15 +94,17 @@ def test_calculate_bbo_with_mods(n: int):
     )
 
     market_data = market_data.with_columns(
-        bbo=calculate_bbo("price", "qty", "is_bid", "prev_price", "prev_qty")
+        bbo=calculate_bbo(
+            "price", "qty", "is_bid", "prev_price", "prev_qty", n=nr_tracked_levels
+        )
     ).unnest("bbo")
 
     expected_values = {
         "id": [-2, -1, 1, 2, 3, 4, 5, 6],
-        "best_bid": [1, 1, 2, 3, 1, 1, 1, 1],
-        "best_ask": [None, 6, 6, 6, 6, 5, 4, 6],
-        "best_bid_qty": [1, 1, 2, 3, 1, 1, 1, 1],
-        "best_ask_qty": [None, 6, 6, 6, 6, 5, 4, 6],
+        "bid_price_1": [1, 1, 2, 3, 1, 1, 1, 1],
+        "ask_price_1": [None, 6, 6, 6, 6, 5, 4, 6],
+        "bid_qty_1": [1, 1, 2, 3, 1, 1, 1, 1],
+        "ask_qty_1": [None, 6, 6, 6, 6, 5, 4, 6],
     }
     expected = pl.DataFrame(
         expected_values,
@@ -110,15 +114,16 @@ def test_calculate_bbo_with_mods(n: int):
 
     assert_frame_equal(
         market_data.select(
-            "id", "best_bid", "best_ask", "best_bid_qty", "best_ask_qty"
+            "id", "bid_price_1", "ask_price_1", "bid_qty_1", "ask_qty_1"
         ),
         expected,
         check_column_order=False,
     )
 
 
+@pytest.mark.parametrize("nr_tracked_levels", [1, 2, 4])
 @pytest.mark.parametrize("n", [1, 10, 100, 1000])
-def test_calculate_bbo_with_modifies_not_used(n: int):
+def test_calculate_bbo_with_modifies_not_used(n: int, nr_tracked_levels: int):
     market_data = pl.DataFrame(
         {
             "id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] * n,
@@ -150,15 +155,17 @@ def test_calculate_bbo_with_modifies_not_used(n: int):
         prev_price=pl.lit(None, dtype=pl.Int64), prev_qty=pl.lit(None, dtype=pl.Int64)
     )
     market_data = market_data.with_columns(
-        bbo=calculate_bbo("price", "qty", "is_bid", "prev_price", "prev_qty")
+        bbo=calculate_bbo(
+            "price", "qty", "is_bid", "prev_price", "prev_qty", n=nr_tracked_levels
+        )
     ).unnest("bbo")
 
     expected_values = {
         "id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-        "best_bid": [1, 2, 3, 3, 3, 3, 2, 2, None, None, None, None],
-        "best_ask": [None, None, None, 6, 5, 4, 4, 4, 4, 4, 6, None],
-        "best_bid_qty": [1, 2, 3, 3, 3, 3, 2, 2, None, None, None, None],
-        "best_ask_qty": [None, None, None, 6, 5, 4, 4, 4, 4, 4, 6, None],
+        "bid_price_1": [1, 2, 3, 3, 3, 3, 2, 2, None, None, None, None],
+        "ask_price_1": [None, None, None, 6, 5, 4, 4, 4, 4, 4, 6, None],
+        "bid_qty_1": [1, 2, 3, 3, 3, 3, 2, 2, None, None, None, None],
+        "ask_qty_1": [None, None, None, 6, 5, 4, 4, 4, 4, 4, 6, None],
     }
     expected = pl.DataFrame(
         expected_values,
@@ -168,15 +175,16 @@ def test_calculate_bbo_with_modifies_not_used(n: int):
 
     assert_frame_equal(
         market_data.select(
-            "id", "best_bid", "best_ask", "best_bid_qty", "best_ask_qty"
+            "id", "bid_price_1", "ask_price_1", "bid_qty_1", "ask_qty_1"
         ),
         expected,
         check_column_order=False,
     )
 
 
+@pytest.mark.parametrize("nr_tracked_levels", [1, 2, 4])
 @pytest.mark.parametrize("n, is_bid", [(1, True), (1, False), (10, True), (10, False)])
-def test_multiple_orders_per_level_modify(n: int, is_bid: bool):
+def test_multiple_orders_per_level_modify(n: int, is_bid: bool, nr_tracked_levels: int):
     market_data = pl.DataFrame(
         {
             "id": [1, 2, 3, 4] + [5, 6, 3, 4] * n,
@@ -195,7 +203,9 @@ def test_multiple_orders_per_level_modify(n: int, is_bid: bool):
     ).with_columns(is_bid=is_bid)
 
     market_data = market_data.with_columns(
-        bbo=calculate_bbo("price", "qty", "is_bid", "prev_price", "prev_qty")
+        bbo=calculate_bbo(
+            "price", "qty", "is_bid", "prev_price", "prev_qty", n=nr_tracked_levels
+        )
     ).unnest("bbo")
 
     if is_bid:
@@ -208,10 +218,10 @@ def test_multiple_orders_per_level_modify(n: int, is_bid: bool):
         best_px_qty = [1, 2, 1, 4, 1, 2]
     expected_values = {
         "id": [1, 2, 3, 4, 5, 6],
-        f"best_{side}": best_px,
-        f"best_{other_side}": [None] * 6,
-        f"best_{side}_qty": best_px_qty,
-        f"best_{other_side}_qty": [None] * 6,
+        f"{side}_price_1": best_px,
+        f"{other_side}_price_1": [None] * 6,
+        f"{side}_qty_1": best_px_qty,
+        f"{other_side}_qty_1": [None] * 6,
     }
     expected = pl.DataFrame(
         expected_values,
@@ -221,7 +231,7 @@ def test_multiple_orders_per_level_modify(n: int, is_bid: bool):
 
     assert_frame_equal(
         market_data.select(
-            "id", "best_bid", "best_ask", "best_bid_qty", "best_ask_qty"
+            "id", "bid_price_1", "ask_price_1", "bid_qty_1", "ask_qty_1"
         ),
         expected,
         check_column_order=False,
