@@ -5,7 +5,10 @@ use polars::datatypes::BooleanType;
 use polars::prelude::*;
 use pyo3_polars::derive::polars_expr;
 
-use order_book::{book_side_tracked_basic::BookSideWithBasicTracking, order_book_tracked_basic::OrderBookWithBasicTracking};
+use order_book::{
+    book_side_tracked_basic::BookSideWithBasicTracking,
+    order_book_tracked_basic::OrderBookWithBasicTracking,
+};
 
 fn bbo_struct(input_fields: &[Field]) -> PolarsResult<Field> {
     let price_field = &input_fields[0];
@@ -179,7 +182,12 @@ pub fn calculate_bbo_with_modifies_basic_tracking(
     Ok(result)
 }
 
-fn apply_simple_mutation(book: &mut OrderBookWithBasicTracking<i64, i64>, is_bid: bool, price: i64, qty: i64) {
+fn apply_simple_mutation(
+    book: &mut OrderBookWithBasicTracking<i64, i64>,
+    is_bid: bool,
+    price: i64,
+    qty: i64,
+) {
     if qty > 0 {
         book.book_side(is_bid).add_qty(price, qty)
     } else {

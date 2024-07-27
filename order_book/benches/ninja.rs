@@ -8,15 +8,18 @@ use order_book::order_book::OrderBook;
 use order_book::order_book_tracked::OrderBookWithTopNTracking;
 use order_book::order_book_tracked_basic::OrderBookWithBasicTracking;
 
-
 pub fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("ninja_order_book");
 
     let mut book_untracked: OrderBook<i64, i64> = black_box(OrderBook::new());
-    let mut book_basic: OrderBookWithBasicTracking<i64, i64> = black_box(OrderBookWithBasicTracking::new());
-    let mut book_1: OrderBookWithTopNTracking<i64, i64, 1> = black_box(OrderBookWithTopNTracking::new());
-    let mut book_2: OrderBookWithTopNTracking<i64, i64, 2> = black_box(OrderBookWithTopNTracking::new());
-    let mut book_5: OrderBookWithTopNTracking<i64, i64, 5> = black_box(OrderBookWithTopNTracking::new());
+    let mut book_basic: OrderBookWithBasicTracking<i64, i64> =
+        black_box(OrderBookWithBasicTracking::new());
+    let mut book_1: OrderBookWithTopNTracking<i64, i64, 1> =
+        black_box(OrderBookWithTopNTracking::new());
+    let mut book_2: OrderBookWithTopNTracking<i64, i64, 2> =
+        black_box(OrderBookWithTopNTracking::new());
+    let mut book_5: OrderBookWithTopNTracking<i64, i64, 5> =
+        black_box(OrderBookWithTopNTracking::new());
 
     let mut test_data_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     test_data_path.push("benches/ninja_order_book.csv");
@@ -31,7 +34,6 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         .map(|(f, p, q)| (f.unwrap(), p.unwrap(), q.unwrap()))
         .collect::<Vec<(bool, i64, i64)>>();
 
-    
     group.bench_function("untracked", |b| {
         b.iter(|| {
             let data_cloned = data.clone();
