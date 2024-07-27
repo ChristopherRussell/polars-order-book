@@ -35,7 +35,7 @@ impl<Price: Ord + Hash + Copy + Debug, Qty: Num + Ord + Debug + Copy, const N: u
     }
 
     pub fn get_nth_best_level(&self) -> Option<PriceLevel<Price, Qty>> {
-        self.book_side.get_nth_best_level(N)
+        self.book_side.get_nth_best_level(N-1)
     }
 
     pub fn get_level(&self, price: Price) -> Option<&PriceLevel<Price, Qty>> {
