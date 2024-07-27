@@ -164,238 +164,147 @@ impl<Price: Ord + Hash + Copy + Debug, Qty: Num + Ord + Debug + Copy, const N: u
 }
 #[cfg(test)]
 mod tests {
+    use tracing::Level;
+
     use super::*;
+
+    fn create_books() -> (
+        BookSideWithTopNTracking<i32, i32, 1>,
+        BookSideWithTopNTracking<i32, i32, 2>,
+        BookSideWithTopNTracking<i32, i32, 3>,
+        BookSideWithTopNTracking<i32, i32, 1>,
+        BookSideWithTopNTracking<i32, i32, 2>,
+        BookSideWithTopNTracking<i32, i32, 3>,
+    ) {
+        (
+            BookSideWithTopNTracking::new(true),
+            BookSideWithTopNTracking::new(true),
+            BookSideWithTopNTracking::new(true),
+            BookSideWithTopNTracking::new(false),
+            BookSideWithTopNTracking::new(false),
+            BookSideWithTopNTracking::new(false),
+        )
+    }
+
+    // Macro to assert the top_n values for all book sides in a tuple
+    macro_rules! assert_top_n {
+        ($expected:expr, $books:expr) => {
+            let (ref book_side_1, ref book_side_2, ref book_side_3) = $books;
+            assert_eq!(book_side_1.top_n(), &$expected[..1]);
+            assert_eq!(book_side_2.top_n(), &$expected[..2]);
+            assert_eq!(book_side_3.top_n(), &$expected[..3]);
+
+            let best_price = $expected[0].map(|pl| pl.price);
+            assert_eq!(book_side_1.best_price(), best_price);
+            assert_eq!(book_side_2.best_price(), best_price);
+            assert_eq!(book_side_3.best_price(), best_price);
+
+            let best_price_qty = $expected[0].map(|pl| pl.qty);
+            assert_eq!(book_side_1.best_price_qty(), best_price_qty);
+            assert_eq!(book_side_2.best_price_qty(), best_price_qty);
+            assert_eq!(book_side_3.best_price_qty(), best_price_qty);
+        };
+    }
+
+    // Macro to assert the top_n values for all book sides in a tuple
+    macro_rules! assert_top_n_bids {
+        ($expected:expr, $books:expr) => {
+            let (ref book_side_1, ref book_side_2, ref book_side_3, _, _, _) = $books;
+            assert_top_n!($expected, (book_side_1, book_side_2, book_side_3));
+        };
+    }
+
+    macro_rules! assert_top_n_asks {
+        ($expected:expr, $books:expr) => {
+            let (_, _, _, ref book_side_1, ref book_side_2, ref book_side_3) = $books;
+            assert_top_n!($expected, (book_side_1, book_side_2, book_side_3));
+        };
+    }
+
+    macro_rules! add_qty {
+        ($price:expr, $qty:expr, $books:expr) => {
+            let (
+                ref mut bid_side_1,
+                ref mut bid_side_2,
+                ref mut bid_side_3,
+                ref mut ask_side_1,
+                ref mut ask_side_2,
+                ref mut ask_side_3,
+            ) = $books;
+            bid_side_1.add_qty($price, $qty);
+            bid_side_2.add_qty($price, $qty);
+            bid_side_3.add_qty($price, $qty);
+            ask_side_1.add_qty($price, $qty);
+            ask_side_2.add_qty($price, $qty);
+            ask_side_3.add_qty($price, $qty);
+        };
+    }
+
+    macro_rules! delete_qty {
+        ($price:expr, $qty:expr, $books:expr) => {
+            let (
+                ref mut bid_side_1,
+                ref mut bid_side_2,
+                ref mut bid_side_3,
+                ref mut ask_side_1,
+                ref mut ask_side_2,
+                ref mut ask_side_3,
+            ) = $books;
+            bid_side_1.delete_qty($price, $qty).unwrap();
+            bid_side_2.delete_qty($price, $qty).unwrap();
+            bid_side_3.delete_qty($price, $qty).unwrap();
+            ask_side_1.delete_qty($price, $qty).unwrap();
+            ask_side_2.delete_qty($price, $qty).unwrap();
+            ask_side_3.delete_qty($price, $qty).unwrap();
+        };
+    }
 
     #[test]
     fn test_add_more_levels_than_tracked() {
-        let mut book_side_bid1 = BookSideWithTopNTracking::<i32, i32, 1>::new(true);
-        let mut book_side_bid2 = BookSideWithTopNTracking::<i32, i32, 2>::new(true);
-        let mut book_side_ask1 = BookSideWithTopNTracking::<i32, i32, 1>::new(false);
-        let mut book_side_ask2 = BookSideWithTopNTracking::<i32, i32, 2>::new(false);
+        let mut book_sides = create_books();
         let prices = [400, 100, 200, 300, 400, 100];
         let qtys = [19, 6, 20, 30, 21, 4];
         for (price, qty) in prices.iter().zip(qtys.iter()) {
-            for book_side in [&mut book_side_bid1, &mut book_side_ask1] {
-                book_side.add_qty(*price, *qty);
-            }
-            for book_side in [&mut book_side_bid2, &mut book_side_ask2] {
-                book_side.add_qty(*price, *qty);
-            }
+            add_qty!(*price, *qty, book_sides);
         }
-        assert_eq!(book_side_bid1.best_price(), Some(400));
-        assert_eq!(book_side_bid1.best_price_qty(), Some(40));
-        assert_eq!(
-            book_side_bid1.top_n(),
-            &[Some(PriceLevel {
+
+        let expected_top_n_bids = [
+            Some(PriceLevel {
                 price: 400,
-                qty: 40
-            })]
-        );
-        assert_eq!(book_side_ask1.best_price(), Some(100));
-        assert_eq!(book_side_ask1.best_price_qty(), Some(10));
-        assert_eq!(
-            book_side_ask1.top_n(),
-            &[Some(PriceLevel {
+                qty: 40,
+            }),
+            Some(PriceLevel {
+                price: 300,
+                qty: 30,
+            }),
+            Some(PriceLevel {
+                price: 200,
+                qty: 20,
+            }),
+        ];
+        let expected_top_n_asks = [
+            Some(PriceLevel {
                 price: 100,
-                qty: 10
-            })]
-        );
-        assert_eq!(book_side_bid2.best_price(), Some(400));
-        assert_eq!(book_side_bid2.best_price_qty(), Some(40));
-        assert_eq!(
-            book_side_bid2.top_n(),
-            &[
-                Some(PriceLevel {
-                    price: 400,
-                    qty: 40
-                }),
-                Some(PriceLevel {
-                    price: 300,
-                    qty: 30
-                })
-            ]
-        );
-        assert_eq!(book_side_ask2.best_price(), Some(100));
-        assert_eq!(book_side_ask2.best_price_qty(), Some(10));
-        assert_eq!(
-            book_side_ask2.top_n(),
-            &[
-                Some(PriceLevel {
-                    price: 100,
-                    qty: 10
-                }),
-                Some(PriceLevel {
-                    price: 200,
-                    qty: 20
-                })
-            ]
-        );
+                qty: 10,
+            }),
+            Some(PriceLevel {
+                price: 200,
+                qty: 20,
+            }),
+            Some(PriceLevel {
+                price: 300,
+                qty: 30,
+            }),
+        ];
+        assert_top_n_bids!(expected_top_n_bids, book_sides);
+        assert_top_n_asks!(expected_top_n_asks, book_sides);
     }
 
     #[test]
     fn test_delete_qty() {
-        let mut book_side = BookSideWithTopNTracking::<i32, i32, 3>::new(true);
-        let (price, qty) = (100, 10);
-        book_side.add_qty(price, qty);
-        assert_eq!(book_side.best_price(), Some(price));
-        assert_eq!(book_side.best_price_qty(), Some(qty));
-        assert_eq!(
-            book_side.top_n(),
-            &[Some(PriceLevel { price, qty }), None, None]
-        );
-
-        book_side.delete_qty(price, qty).unwrap();
-        assert_eq!(book_side.book_side.levels.len(), 0);
-        assert_eq!(book_side.best_price(), None);
-        assert_eq!(book_side.best_price_qty(), None);
-        assert_eq!(book_side.top_n(), &[None, None, None]);
-    }
-
-    #[test]
-    fn test_best_price_after_add_better() {
-        let mut book_side = BookSideWithTopNTracking::<i32, i32, 3>::new(true);
-        book_side.add_qty(100, 10);
-        assert_eq!(book_side.best_price(), Some(100));
-        assert_eq!(book_side.best_price_qty(), Some(10));
-        assert_eq!(
-            book_side.top_n(),
-            &[
-                Some(PriceLevel {
-                    price: 100,
-                    qty: 10
-                }),
-                None,
-                None
-            ]
-        );
-
-        book_side.add_qty(101, 20);
-        assert_eq!(book_side.best_price(), Some(101));
-        assert_eq!(book_side.best_price_qty(), Some(20));
-        assert_eq!(
-            book_side.top_n(),
-            &[
-                Some(PriceLevel {
-                    price: 101,
-                    qty: 20
-                }),
-                Some(PriceLevel {
-                    price: 100,
-                    qty: 10
-                }),
-                None
-            ]
-        );
-
-        let mut book_side = BookSideWithTopNTracking::<i32, i32, 3>::new(false);
-        book_side.add_qty(101, 20);
-        assert_eq!(book_side.best_price(), Some(101));
-        assert_eq!(book_side.best_price_qty(), Some(20));
-        assert_eq!(
-            book_side.top_n(),
-            &[
-                Some(PriceLevel {
-                    price: 101,
-                    qty: 20
-                }),
-                None,
-                None
-            ]
-        );
-
-        book_side.add_qty(100, 10);
-        assert_eq!(book_side.best_price(), Some(100));
-        assert_eq!(book_side.best_price_qty(), Some(10));
-        assert_eq!(
-            book_side.top_n(),
-            &[
-                Some(PriceLevel {
-                    price: 100,
-                    qty: 10
-                }),
-                Some(PriceLevel {
-                    price: 101,
-                    qty: 20
-                }),
-                None
-            ]
-        );
-    }
-
-    #[test]
-    fn test_best_price_modify_quantity() {
-        for is_bid in [true, false] {
-            let mut book_side = BookSideWithTopNTracking::<i32, i32, 3>::new(is_bid);
-            book_side.add_qty(100, 10);
-            assert_eq!(book_side.best_price(), Some(100));
-            assert_eq!(book_side.best_price_qty(), Some(10));
-            assert_eq!(
-                book_side.top_n(),
-                &[
-                    Some(PriceLevel {
-                        price: 100,
-                        qty: 10
-                    }),
-                    None,
-                    None
-                ]
-            );
-
-            book_side.add_qty(100, 20);
-            assert_eq!(book_side.best_price(), Some(100));
-            assert_eq!(book_side.best_price_qty(), Some(30));
-            assert_eq!(
-                book_side.top_n(),
-                &[
-                    Some(PriceLevel {
-                        price: 100,
-                        qty: 30
-                    }),
-                    None,
-                    None
-                ]
-            );
-
-            book_side.delete_qty(100, 15).unwrap();
-            assert_eq!(book_side.best_price(), Some(100));
-            assert_eq!(book_side.best_price_qty(), Some(15));
-            assert_eq!(
-                book_side.top_n(),
-                &[
-                    Some(PriceLevel {
-                        price: 100,
-                        qty: 15
-                    }),
-                    None,
-                    None
-                ]
-            );
-
-            book_side.delete_qty(100, 15).unwrap();
-            assert_eq!(book_side.best_price(), None);
-            assert_eq!(book_side.best_price_qty(), None);
-            assert_eq!(book_side.top_n(), &[None, None, None]);
-        }
-    }
-
-    #[test]
-    fn test_modify_price() {
-        let mut book_side1 = BookSideWithTopNTracking::<i32, i32, 1>::new(true);
-        let mut book_side2 = BookSideWithTopNTracking::<i32, i32, 2>::new(true);
-        let mut book_side3 = BookSideWithTopNTracking::<i32, i32, 3>::new(true);
-        book_side1.add_qty(100, 10);
-        book_side2.add_qty(100, 10);
-        book_side3.add_qty(100, 10);
-
-        assert_eq!(book_side1.best_price(), Some(100));
-        assert_eq!(book_side2.best_price(), Some(100));
-        assert_eq!(book_side3.best_price(), Some(100));
-
-        assert_eq!(book_side1.best_price_qty(), Some(10));
-        assert_eq!(book_side2.best_price_qty(), Some(10));
-        assert_eq!(book_side3.best_price_qty(), Some(10));
-
-        let top_n = [
+        let mut book_sides = create_books();
+        add_qty!(100, 10, book_sides);
+        let expected_top_n = [
             Some(PriceLevel {
                 price: 100,
                 qty: 10,
@@ -403,54 +312,86 @@ mod tests {
             None,
             None,
         ];
-        assert_eq!(book_side1.top_n(), &top_n[..1]);
-        assert_eq!(book_side2.top_n(), &top_n[..2]);
-        assert_eq!(book_side3.top_n(), &top_n);
+        assert_top_n_bids!(expected_top_n, book_sides);
+        assert_top_n_asks!(expected_top_n, book_sides);
 
-        book_side1.delete_qty(100, 10).unwrap();
-        book_side1.add_qty(101, 20);
-        book_side2.delete_qty(100, 10).unwrap();
-        book_side2.add_qty(101, 20);
-        book_side3.delete_qty(100, 10).unwrap();
-        book_side3.add_qty(101, 20);
+        delete_qty!(100, 10, book_sides);
+        let expected_top_n = [None, None, None];
+        assert_top_n_bids!(expected_top_n, book_sides);
+        assert_top_n_asks!(expected_top_n, book_sides);
+    }
 
-        assert_eq!(book_side1.best_price(), Some(101));
-        assert_eq!(book_side2.best_price(), Some(101));
-        assert_eq!(book_side3.best_price(), Some(101));
+    #[test]
+    fn test_best_price_after_add_better() {
+        let mut book_sides = create_books();
+        add_qty!(100, 10, book_sides);
+        let expected_top_n = [
+            Some(PriceLevel {
+                price: 100,
+                qty: 10,
+            }),
+            None,
+            None,
+        ];
+        assert_top_n_bids!(expected_top_n, book_sides);
+        assert_top_n_asks!(expected_top_n, book_sides);
 
-        assert_eq!(book_side1.best_price_qty(), Some(20));
-        assert_eq!(book_side2.best_price_qty(), Some(20));
-        assert_eq!(book_side3.best_price_qty(), Some(20));
-
-        let top_n = [
+        add_qty!(101, 20, book_sides);
+        let expected_top_n_bids = [
+            Some(PriceLevel {
+                price: 101,
+                qty: 20,
+            }),
+            Some(PriceLevel {
+                price: 100,
+                qty: 10,
+            }),
+            None,
+        ];
+        let expected_top_n_asks = [
+            Some(PriceLevel {
+                price: 100,
+                qty: 10,
+            }),
             Some(PriceLevel {
                 price: 101,
                 qty: 20,
             }),
             None,
+        ];
+        assert_top_n_bids!(expected_top_n_bids, book_sides);
+        assert_top_n_asks!(expected_top_n_asks, book_sides);
+    }
+
+    #[test]
+    fn test_best_price_modify_quantity() {
+        let mut book_sides = create_books();
+        add_qty!(100, 10, book_sides);
+        let expected_top_n = [
+            Some(PriceLevel {
+                price: 100,
+                qty: 10,
+            }),
+            None,
             None,
         ];
+        assert_top_n_bids!(expected_top_n, book_sides);
+        assert_top_n_asks!(expected_top_n, book_sides);
 
-        assert_eq!(book_side1.top_n(), &top_n[..1]);
-        assert_eq!(book_side2.top_n(), &top_n[..2]);
-        assert_eq!(book_side3.top_n(), &top_n);
+        add_qty!(100, 20, book_sides);
+        let expected_top_n = [
+            Some(PriceLevel {
+                price: 100,
+                qty: 30,
+            }),
+            None,
+            None,
+        ];
+        assert_top_n_bids!(expected_top_n, book_sides);
+        assert_top_n_asks!(expected_top_n, book_sides);
 
-        book_side1.delete_qty(101, 20).unwrap();
-        book_side1.add_qty(100, 15);
-        book_side2.delete_qty(101, 20).unwrap();
-        book_side2.add_qty(100, 15);
-        book_side3.delete_qty(101, 20).unwrap();
-        book_side3.add_qty(100, 15);
-
-        assert_eq!(book_side1.best_price(), Some(100));
-        assert_eq!(book_side2.best_price(), Some(100));
-        assert_eq!(book_side3.best_price(), Some(100));
-
-        assert_eq!(book_side1.best_price_qty(), Some(15));
-        assert_eq!(book_side2.best_price_qty(), Some(15));
-        assert_eq!(book_side3.best_price_qty(), Some(15));
-
-        let top_n = [
+        delete_qty!(100, 15, book_sides);
+        let expected_top_n = [
             Some(PriceLevel {
                 price: 100,
                 qty: 15,
@@ -458,101 +399,230 @@ mod tests {
             None,
             None,
         ];
-        assert_eq!(book_side1.top_n(), &top_n[..1]);
-        assert_eq!(book_side2.top_n(), &top_n[..2]);
-        assert_eq!(book_side3.top_n(), &top_n);
+        assert_top_n_bids!(expected_top_n, book_sides);
+        assert_top_n_asks!(expected_top_n, book_sides);
+
+        delete_qty!(100, 15, book_sides);
+        let expected_top_n = [None, None, None];
+        assert_top_n_bids!(expected_top_n, book_sides);
+        assert_top_n_asks!(expected_top_n, book_sides);
+    }
+
+    #[test]
+    fn test_modify_price() {
+        let mut book_sides = create_books();
+        add_qty!(100, 10, book_sides);
+        let expected_top_n = [
+            Some(PriceLevel {
+                price: 100,
+                qty: 10,
+            }),
+            None,
+            None,
+        ];
+        assert_top_n_bids!(expected_top_n, book_sides);
+        assert_top_n_asks!(expected_top_n, book_sides);
+
+        delete_qty!(100, 10, book_sides);
+        add_qty!(101, 20, book_sides);
+        let expected_top_n = [
+            Some(PriceLevel {
+                price: 101,
+                qty: 20,
+            }),
+            None,
+            None,
+        ];
+        assert_top_n_bids!(expected_top_n, book_sides);
+        assert_top_n_asks!(expected_top_n, book_sides);
+
+        delete_qty!(101, 20, book_sides);
+        add_qty!(100, 15, book_sides);
+        let expected_top_n = [
+            Some(PriceLevel {
+                price: 100,
+                qty: 15,
+            }),
+            None,
+            None,
+        ];
+        assert_top_n_bids!(expected_top_n, book_sides);
+        assert_top_n_asks!(expected_top_n, book_sides);
     }
 
     #[test]
     fn test_book_side_with_cyclic_modify_price() {
-        let mut bid_side_1 = BookSideWithTopNTracking::<i32, i32, 1>::new(true);
-        let mut bid_side_2 = BookSideWithTopNTracking::<i32, i32, 2>::new(true);
-        let mut ask_side_1 = BookSideWithTopNTracking::<i32, i32, 1>::new(false);
-        let mut ask_side_2 = BookSideWithTopNTracking::<i32, i32, 2>::new(false);
-
-        bid_side_1.add_qty(100, 10);
-        bid_side_2.add_qty(100, 10);
-        ask_side_1.add_qty(100, 10);
-        ask_side_2.add_qty(100, 10);
-
-        bid_side_1.delete_qty(100, 10).unwrap();
-        bid_side_2.delete_qty(100, 10).unwrap();
-        ask_side_1.delete_qty(100, 10).unwrap();
-        ask_side_2.delete_qty(100, 10).unwrap();
-
-        bid_side_1.add_qty(101, 11);
-        bid_side_2.add_qty(101, 11);
-        ask_side_1.add_qty(101, 11);
-        ask_side_2.add_qty(101, 11);
-
-        let top_n = [
+        let mut book_sides = create_books();
+        add_qty!(100, 10, book_sides);
+        delete_qty!(100, 10, book_sides);
+        add_qty!(101, 11, book_sides);
+        let expected_top_n = [
             Some(PriceLevel {
                 price: 101,
                 qty: 11,
             }),
             None,
+            None,
         ];
-        assert_eq!(bid_side_1.top_n(), &top_n[..1]);
-        assert_eq!(bid_side_2.top_n(), &top_n);
-        assert_eq!(ask_side_1.top_n(), &top_n[..1]);
-        assert_eq!(ask_side_2.top_n(), &top_n);
+        assert_top_n_bids!(expected_top_n, book_sides);
+        assert_top_n_asks!(expected_top_n, book_sides);
 
-        bid_side_1.delete_qty(101, 11).unwrap();
-        bid_side_2.delete_qty(101, 11).unwrap();
-        ask_side_1.delete_qty(101, 11).unwrap();
-        ask_side_2.delete_qty(101, 11).unwrap();
+        delete_qty!(101, 11, book_sides);
+        let expected_top_n = [None, None, None];
+        assert_top_n_bids!(expected_top_n, book_sides);
+        assert_top_n_asks!(expected_top_n, book_sides);
 
-        let top_n = [None, None];
-        assert_eq!(bid_side_1.top_n(), &top_n[..1]);
-        assert_eq!(bid_side_2.top_n(), &top_n);
-        assert_eq!(ask_side_1.top_n(), &top_n[..1]);
-        assert_eq!(ask_side_2.top_n(), &top_n);
-
-        bid_side_1.add_qty(100, 12);
-        bid_side_2.add_qty(100, 12);
-        ask_side_1.add_qty(100, 12);
-        ask_side_2.add_qty(100, 12);
-
-        let top_n = [
+        add_qty!(100, 12, book_sides);
+        let expected_top_n = [
             Some(PriceLevel {
                 price: 100,
                 qty: 12,
             }),
             None,
+            None,
         ];
-        assert_eq!(bid_side_1.top_n(), &top_n[..1]);
-        assert_eq!(bid_side_2.top_n(), &top_n);
-        assert_eq!(ask_side_1.top_n(), &top_n[..1]);
-        assert_eq!(ask_side_2.top_n(), &top_n);
+        assert_top_n_bids!(expected_top_n, book_sides);
+        assert_top_n_asks!(expected_top_n, book_sides);
 
-        bid_side_1.delete_qty(100, 12).unwrap();
-        bid_side_2.delete_qty(100, 12).unwrap();
-        ask_side_1.delete_qty(100, 12).unwrap();
-        ask_side_2.delete_qty(100, 12).unwrap();
+        delete_qty!(100, 12, book_sides);
+        let expected_top_n = [None, None, None];
+        assert_top_n_bids!(expected_top_n, book_sides);
+        assert_top_n_asks!(expected_top_n, book_sides);
 
-        let top_n = [None, None];
-
-        assert_eq!(bid_side_1.top_n(), &top_n[..1]);
-        assert_eq!(bid_side_2.top_n(), &top_n);
-        assert_eq!(ask_side_1.top_n(), &top_n[..1]);
-        assert_eq!(ask_side_2.top_n(), &top_n);
-
-        bid_side_1.add_qty(102, 13);
-        bid_side_2.add_qty(102, 13);
-        ask_side_1.add_qty(102, 13);
-        ask_side_2.add_qty(102, 13);
-
-        let top_n = [
+        add_qty!(102, 13, book_sides);
+        let expected_top_n = [
             Some(PriceLevel {
                 price: 102,
                 qty: 13,
             }),
             None,
+            None,
+        ];
+        assert_top_n_bids!(expected_top_n, book_sides);
+        assert_top_n_asks!(expected_top_n, book_sides);
+    }
+
+    #[test]
+    fn test_full_book_side_with_cyclic_modify_price() {
+        tracing_subscriber::fmt()
+            .pretty()
+            .with_max_level(Level::TRACE)
+            .with_test_writer()
+            .init();
+        let mut book_sides = create_books();
+        add_qty!(100, 10, book_sides);
+        add_qty!(101, 11, book_sides);
+        add_qty!(102, 12, book_sides);
+        add_qty!(103, 13, book_sides);
+        add_qty!(104, 14, book_sides);
+        add_qty!(105, 15, book_sides);
+
+        let expected_top_n_bids = [
+            Some(PriceLevel {
+                price: 105,
+                qty: 15,
+            }),
+            Some(PriceLevel {
+                price: 104,
+                qty: 14,
+            }),
+            Some(PriceLevel {
+                price: 103,
+                qty: 13,
+            }),
+        ];
+        let expected_top_n_asks = [
+            Some(PriceLevel {
+                price: 100,
+                qty: 10,
+            }),
+            Some(PriceLevel {
+                price: 101,
+                qty: 11,
+            }),
+            Some(PriceLevel {
+                price: 102,
+                qty: 12,
+            }),
+        ];
+        assert_top_n_bids!(expected_top_n_bids, book_sides);
+        assert_top_n_asks!(expected_top_n_asks, book_sides);
+
+        delete_qty!(100, 10, book_sides);
+
+        let expected_top_n_asks = [
+            Some(PriceLevel {
+                price: 101,
+                qty: 11,
+            }),
+            Some(PriceLevel {
+                price: 102,
+                qty: 12,
+            }),
+            Some(PriceLevel {
+                price: 103,
+                qty: 13,
+            }),
         ];
 
-        assert_eq!(bid_side_1.top_n(), &top_n[..1]);
-        assert_eq!(bid_side_2.top_n(), &top_n);
-        assert_eq!(ask_side_1.top_n(), &top_n[..1]);
-        assert_eq!(ask_side_2.top_n(), &top_n);
+        assert_top_n_bids!(expected_top_n_bids, book_sides);
+        assert_top_n_asks!(expected_top_n_asks, book_sides);
+
+        add_qty!(99, 9, book_sides);
+
+        let expected_top_n_asks = [
+            Some(PriceLevel { price: 99, qty: 9 }),
+            Some(PriceLevel {
+                price: 101,
+                qty: 11,
+            }),
+            Some(PriceLevel {
+                price: 102,
+                qty: 12,
+            }),
+        ];
+
+        assert_top_n_bids!(expected_top_n_bids, book_sides);
+        assert_top_n_asks!(expected_top_n_asks, book_sides);
+
+        delete_qty!(105, 15, book_sides);
+
+        let expected_top_n_bids = [
+            Some(PriceLevel {
+                price: 104,
+                qty: 14,
+            }),
+            Some(PriceLevel {
+                price: 103,
+                qty: 13,
+            }),
+            Some(PriceLevel {
+                price: 102,
+                qty: 12,
+            }),
+        ];
+
+        assert_top_n_bids!(expected_top_n_bids, book_sides);
+        assert_top_n_asks!(expected_top_n_asks, book_sides);
+
+        add_qty!(106, 16, book_sides);
+
+        let expected_top_n_bids = [
+            Some(PriceLevel {
+                price: 106,
+                qty: 16,
+            }),
+            Some(PriceLevel {
+                price: 104,
+                qty: 14,
+            }),
+            Some(PriceLevel {
+                price: 103,
+                qty: 13,
+            }),
+        ];
+
+        assert_top_n_bids!(expected_top_n_bids, book_sides);
+        assert_top_n_asks!(expected_top_n_asks, book_sides);
     }
 }
