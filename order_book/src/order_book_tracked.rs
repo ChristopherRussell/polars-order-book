@@ -1,36 +1,42 @@
-use anyhow::Context;
-use num::traits::Num;
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 
-use crate::book_side::BookSide;
+use anyhow::Context;
+use num::traits::Num;
 use crate::book_side_ops::BookSideOps;
+use crate::book_side_tracked::BookSideWithTopNTracking;
 
-pub struct OrderBook<Price, Qty> {
-    bids: BookSide<Price, Qty>,
-    offers: BookSide<Price, Qty>,
+pub struct OrderBookWithTopNTracking<Price, Qty, const N: usize> {
+    pub bids: BookSideWithTopNTracking<Price, Qty, N>,
+    pub offers: BookSideWithTopNTracking<Price, Qty, N>,
 }
 
-impl<Price: Copy + Debug + Display + Hash + Ord, Qty: Copy + Debug + Display + Num + Ord> Default
-    for OrderBook<Price, Qty>
+impl<
+        Price: Copy + Debug + Display + Hash + Ord,
+        Qty: Copy + Debug + Display + Num + Ord,
+        const N: usize,
+    > Default for OrderBookWithTopNTracking<Price, Qty, N>
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<Price: Copy + Debug + Display + Hash + Ord, Qty: Copy + Debug + Display + Num + Ord>
-    OrderBook<Price, Qty>
+impl<
+        Price: Copy + Debug + Display + Hash + Ord,
+        Qty: Copy + Debug + Display + Num + Ord,
+        const N: usize,
+    > OrderBookWithTopNTracking<Price, Qty, N>
 {
     pub fn new() -> Self {
-        OrderBook {
-            bids: BookSide::new(true),
-            offers: BookSide::new(false),
+        OrderBookWithTopNTracking {
+            bids: BookSideWithTopNTracking::new(true),
+            offers: BookSideWithTopNTracking::new(false),
         }
     }
 
     #[inline]
-    pub fn book_side(&mut self, is_bid: bool) -> &mut BookSide<Price, Qty> {
+    pub fn book_side(&mut self, is_bid: bool) -> &mut BookSideWithTopNTracking<Price, Qty, N> {
         if is_bid {
             &mut self.bids
         } else {
@@ -74,7 +80,8 @@ mod tests {
     #[test]
     fn test_add_qty() {
         let price = 100;
-        let mut order_book = OrderBook::default();
+        let mut order_book: OrderBookWithTopNTracking<_, _, 1> =
+            OrderBookWithTopNTracking::default();
         for is_bid in [true, false].iter() {
             let mut current_qty = 0;
             for _ in 0..10 {
@@ -89,7 +96,8 @@ mod tests {
 
     #[test]
     fn test_cancel_order() {
-        let mut order_book = OrderBook::default();
+        let mut order_book: OrderBookWithTopNTracking<_, _, 1> =
+            OrderBookWithTopNTracking::default();
         order_book.add_qty(true, 100, 10);
         assert_eq!(order_book.book_side(true).get_level(100).unwrap().qty, 10);
         order_book.delete_qty(true, 100, 10);
@@ -106,7 +114,8 @@ mod tests {
     #[test]
     fn test_modify_qty() {
         for is_bid in [true, false] {
-            let mut order_book = OrderBook::default();
+            let mut order_book: OrderBookWithTopNTracking<_, _, 1> =
+                OrderBookWithTopNTracking::default();
             order_book.add_qty(is_bid, 100, 10);
             assert_eq!(order_book.book_side(is_bid).get_level(100).unwrap().qty, 10);
             order_book.modify_qty(is_bid, 100, 10, 100, 20);
@@ -117,7 +126,8 @@ mod tests {
     #[test]
     fn test_modify_price() {
         for is_bid in [true, false] {
-            let mut order_book = OrderBook::default();
+            let mut order_book: OrderBookWithTopNTracking<_, _, 1> =
+                OrderBookWithTopNTracking::default();
             order_book.add_qty(is_bid, 1, 1);
             assert_eq!(order_book.book_side(is_bid).get_level(1).unwrap().qty, 1);
             order_book.modify_qty(is_bid, 1, 1, 2, 2);
