@@ -49,7 +49,7 @@ impl<
         match (
             found_level_type,
             self.book_side.is_bid,
-            self.top_n_levels.worst_price.map(|px| px.cmp(&added_price)),
+            self.top_n_levels.worst_price.map(|px| added_price.cmp(&px)),
         ) {
             // Ignore bid below worst tracked price or ask above worst tracked price
             (_, true, Some(Ordering::Less)) | (_, false, Some(Ordering::Greater)) => {
