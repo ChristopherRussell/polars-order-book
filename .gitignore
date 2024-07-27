@@ -7,3 +7,5 @@ output
 pyrightconfig.json
 .ruff_cache
 .pytest_cache
+.zed
+.cargo
