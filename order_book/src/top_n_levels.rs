@@ -310,4 +310,46 @@ mod tests {
         assert_eq!(n_levels.levels, get_price_levels([2, 4, 6, 8, 12]));
         assert_eq!(n_levels.worst_price, Some(12));
     }
+
+    #[test]
+    fn test_replace_sort() {
+        let mut n_levels = get_full_n_level();
+        let level: PriceLevel<i32, i32> = PriceLevel::new(1);
+        n_levels.replace_sort(6, Some(level));
+        assert_eq!(n_levels.levels, get_price_levels([10, 8, 4, 2, 1]));
+        assert_eq!(n_levels.worst_price, Some(1));
+
+        let mut n_levels = get_full_n_level();
+        let level: PriceLevel<i32, i32> = PriceLevel::new(1);
+        n_levels.replace_sort(10, Some(level));
+        assert_eq!(n_levels.levels, get_price_levels([8, 6, 4, 2, 1]));
+        assert_eq!(n_levels.worst_price, Some(1));
+
+        let mut n_levels = get_full_n_level();
+        let level: PriceLevel<i32, i32> = PriceLevel::new(1);
+        n_levels.replace_sort(2, Some(level));
+        assert_eq!(n_levels.levels, get_price_levels([10, 8, 6, 4, 1]));
+        assert_eq!(n_levels.worst_price, Some(1));
+
+        let mut n_levels = get_full_n_level_reversed();
+        let level: PriceLevel<i32, i32> = PriceLevel::new(12);
+        n_levels.replace_sort(6, Some(level));
+        assert_eq!(n_levels.levels, get_price_levels([2, 4, 8, 10, 12]));
+        assert_eq!(n_levels.worst_price, Some(12));
+
+        let mut n_levels = get_full_n_level_reversed();
+        let level: PriceLevel<i32, i32> = PriceLevel::new(12);
+        n_levels.replace_sort(10, Some(level));
+        assert_eq!(n_levels.levels, get_price_levels([2, 4, 6, 8, 12]));
+        assert_eq!(n_levels.worst_price, Some(12));
+
+        let mut n_levels = get_full_n_level_reversed();
+        let level: PriceLevel<i32, i32> = PriceLevel::new(12);
+        n_levels.replace_sort(2, Some(level));
+        assert_eq!(n_levels.levels, get_price_levels([4, 6, 8, 10, 12]));
+        assert_eq!(n_levels.worst_price, Some(12));
+
+
+
+    }
 }
