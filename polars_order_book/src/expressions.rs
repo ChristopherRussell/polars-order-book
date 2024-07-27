@@ -315,7 +315,7 @@ mod tests {
     use tracing_subscriber;
 
     #[test]
-    fn test_calculate_bboxw_from_simple_mutations2() {
+    fn test_calculate_bbo_from_simple_mutations2() {
         let df = df! {
             "price" => [1i64, 2, 3, 4, 5, 9, 8, 7, 6],
             "qty" => [10i64, 20, 30, 40, 50, 90, 80, 70, 60],
