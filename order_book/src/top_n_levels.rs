@@ -287,7 +287,7 @@ mod tests {
     }
 
     #[test]
-    pub fn test_try_insert_level_below_worst() {
+    fn test_try_insert_level_below_worst() {
         // try_insert_sort checks if level is better than worst, so should not insert
         // insert_sort does not check if level is better than worst, so will insert
         let mut n_levels = get_full_n_level();
