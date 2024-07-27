@@ -25,6 +25,8 @@ def calculate_bbo(
     is_bid: IntoExpr,
     prev_price: IntoExpr | None = None,
     prev_qty: IntoExpr | None = None,
+    *,
+    n: int = 1,
 ) -> pl.Expr:
     price = parse_into_expr(price)
     qty = parse_into_expr(qty)
@@ -46,4 +48,5 @@ def calculate_bbo(
         symbol="pl_calculate_bbo",
         is_elementwise=False,
         lib=lib,
+        kwargs={"n": n},
     )
