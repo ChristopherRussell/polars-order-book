@@ -1,6 +1,11 @@
 *.so
 *.pyc
 target
-*.idea
+output
+.idea
 *.ipynb
 pyrightconfig.json
+.ruff_cache
+.pytest_cache
+.zed
+.cargo

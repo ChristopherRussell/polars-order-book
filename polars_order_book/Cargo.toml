@@ -1,6 +1,6 @@
 [package]
 name = "polars-order-book"
-version = "0.2.3"
+version = "0.3.0"
 edition = "2021"
 
 [lib]
@@ -9,13 +9,15 @@ crate-type = ["cdylib"]
 
 [dependencies]
 order-book = { path = "../order_book" }
-pyo3 = { version = "0.21.2", features = ["extension-module", "abi3-py38"] }
-pyo3-polars = { version = "0.13.0", features = ["derive"] }
+pyo3 = { version = "0.21", features = ["extension-module", "abi3-py38"] }
+pyo3-polars = { version = "0.15.0", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
-polars = { version = "0.39", features = [
+polars = { version = "0.41.3", features = [
     "dtype-struct",
+    "dtype-array",
     "fmt",
 ], default-features = false }
+polars-arrow = "0.41.3"
 hashbrown = "0.14.3"
 log = "0.4.14"
 env_logger = "0.11.3"
@@ -25,6 +27,8 @@ color-eyre = "0.6.3"
 num = "0.4.0"
 anyhow = "1.0.44"
 itertools = "0.13.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 jemallocator = { version = "0.5", features = ["disable_initial_exec_tls"] }

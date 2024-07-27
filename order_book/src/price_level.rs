@@ -1,9 +1,16 @@
 use num::traits::Num;
+use std::fmt::Debug;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Eq, PartialEq, Clone, Copy)]
 pub struct PriceLevel<Price, Qty> {
     pub price: Price,
     pub qty: Qty,
+}
+
+impl<Price: Debug, Qty: Debug> Debug for PriceLevel<Price, Qty> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?} @ {:?}", self.price, self.qty)
+    }
 }
 
 impl<Price, Qty: Num + Copy> PriceLevel<Price, Qty> {

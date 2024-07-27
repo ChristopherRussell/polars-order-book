@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import polars as pl
 
+from polars_order_book._internal import __version__ as __version__
 from polars_order_book.utils import parse_into_expr, parse_version, register_plugin
 
 if TYPE_CHECKING:
@@ -24,6 +25,8 @@ def calculate_bbo(
     is_bid: IntoExpr,
     prev_price: IntoExpr | None = None,
     prev_qty: IntoExpr | None = None,
+    *,
+    n: int = 1,
 ) -> pl.Expr:
     price = parse_into_expr(price)
     qty = parse_into_expr(qty)
@@ -45,4 +48,5 @@ def calculate_bbo(
         symbol="pl_calculate_bbo",
         is_elementwise=False,
         lib=lib,
+        kwargs={"n": n},
     )
