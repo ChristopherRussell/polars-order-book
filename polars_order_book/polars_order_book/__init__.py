@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import polars as pl
 
+from polars_order_book._internal import __version__ as __version__
 from polars_order_book.utils import parse_into_expr, parse_version, register_plugin
 
 if TYPE_CHECKING:
