@@ -11,7 +11,7 @@ pub fn tracked_book_side_performance_by_nr_levels(c: &mut Criterion) {
         for nr_levels in [1, 100, 10_000] {
             let mut book_1_basic: BookSideWithBasicTracking<i64, i64> =
                 black_box(BookSideWithBasicTracking::new(is_bid));
-                
+
             let mut book_1: BookSideWithTopNTracking<i64, i64, 2> =
                 black_box(BookSideWithTopNTracking::new(is_bid));
 
@@ -47,7 +47,7 @@ pub fn tracked_book_side_performance_by_nr_levels(c: &mut Criterion) {
                 (best_px, best_qty, best_px - 1, best_qty - 1)
             };
             group.bench_function(
-                format!("{}_{}_1_levels", nr_levels, side_name).as_str(),
+                format!("{}_{}_basic_1_level", nr_levels, side_name).as_str(),
                 |b| {
                     b.iter(|| {
                         black_box({
