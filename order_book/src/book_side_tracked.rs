@@ -8,6 +8,7 @@ use crate::book_side::{BookSide, DeleteLevelType, FoundLevelType};
 use crate::book_side_ops::{BookSideOps, BookSideOpsError};
 use crate::price_level::PriceLevel;
 use crate::top_n_levels::NLevels;
+use tracing::{debug, instrument};
 
 pub struct BookSideWithTopNTracking<Price, Qty, const N: usize> {
     book_side: BookSide<Price, Qty>,
@@ -35,6 +36,7 @@ impl<
         const N: usize,
     > BookSideOps<Price, Qty> for BookSideWithTopNTracking<Price, Qty, N>
 {
+    #[instrument]
     fn add_qty(&mut self, price: Price, qty: Qty) -> (FoundLevelType, PriceLevel<Price, Qty>) {
         let (
             found_level_type,
@@ -50,21 +52,42 @@ impl<
             self.top_n_levels.worst_price.map(|px| px.cmp(&added_price)),
         ) {
             // Ignore bid below worst tracked price or ask above worst tracked price
-            (_, true, Some(Ordering::Less)) | (_, false, Some(Ordering::Greater)) => {}
+            (_, true, Some(Ordering::Less)) | (_, false, Some(Ordering::Greater)) => {
+                debug!(
+                    "Ignoring price worse than worst tracked price. Price: {:?}, Worst Price: {:?}, Is Bid: {:?}",
+                    added_price, self.top_n_levels.worst_price, self.book_side.is_bid
+                );
+            }
             // Adding qty to existing tracked price
             (FoundLevelType::Existing, _, _) => {
                 self.top_n_levels.update_qty(added_price, added_qty);
+                debug!(
+                    "Updated qty at tracked level. Price: {:?}, Qty: {:?}",
+                    added_price, added_qty
+                )
             }
             // Insert new top_n bid
-            (FoundLevelType::New, true, _) => self.top_n_levels.try_insert_sort(PriceLevel {
+            (FoundLevelType::New, true, _) => {
+                self.top_n_levels.try_insert_sort(PriceLevel {
                 price: added_price,
                 qty: added_qty,
-            }),
+                });
+                debug!(
+                    "Inserted new top_n bid. Price: {:?}, Qty: {:?}",
+                    added_price, added_qty
+                )
+            }
             // Insert new top_n ask
-            (FoundLevelType::New, false, _) => self.top_n_levels.insert_sort_reversed(PriceLevel {
+            (FoundLevelType::New, false, _) => {
+                self.top_n_levels.insert_sort_reversed(PriceLevel {
                 price: added_price,
                 qty: added_qty,
-            }),
+                });
+                debug!(
+                    "Inserted new top_n ask. Price: {:?}, Qty: {:?}",
+                    added_price, added_qty
+                )
+            }
         }
         (
             found_level_type,
@@ -75,6 +98,7 @@ impl<
         )
     }
 
+    #[instrument]
     fn delete_qty(
         &mut self,
         price: Price,
@@ -91,12 +115,20 @@ impl<
             // Quantity decreased at a tracked level
             (DeleteLevelType::QuantityDecreased, _, _) => {
                 self.top_n_levels.update_qty(level.price, level.qty);
+                debug!(
+                    "Updated qty at tracked level. Price: {:?}, Qty: {:?}",
+                    level.price, level.qty
+                );
             }
             // Tracked level delete, find next best level and replace
             (DeleteLevelType::Deleted, _, _) => {
                 let best_untracked_level = self.get_nth_best_level();
                 self.top_n_levels
                     .replace_sort(level.price, best_untracked_level);
+                debug!(
+                    "Replaced tracked level with next best level. Price: {:?}, Qty: {:?}",
+                    level.price, level.qty
+                );
             }
         }
         Ok((delete_type, level))

@@ -4,6 +4,7 @@ use std::hash::Hash;
 use hashbrown::HashMap;
 use itertools::Itertools;
 use num::traits::Num;
+use tracing::{debug, instrument};
 
 use crate::book_side_ops::{BookSideOps, BookSideOpsError, DeleteError, LevelError};
 
@@ -60,6 +61,7 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
         }
     }
 
+    #[instrument]
     #[inline]
     pub fn find_or_create_level(
         &mut self,
@@ -68,6 +70,7 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
         match self.levels.entry(price) {
             hashbrown::hash_map::Entry::Occupied(o) => (FoundLevelType::Existing, o.into_mut()),
             hashbrown::hash_map::Entry::Vacant(v) => {
+                debug!("Created a new price level");
                 (FoundLevelType::New, v.insert(PriceLevel::new(price)))
             }
         }
@@ -77,19 +80,23 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
 impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord + Num>
     BookSideOps<Price, Qty> for BookSide<Price, Qty>
 {
+    #[instrument]
     #[inline]
     fn add_qty(&mut self, price: Price, qty: Qty) -> (FoundLevelType, PriceLevel<Price, Qty>) {
+        debug!("Adding quantity to book_side");
         let (found_level_type, level) = self.find_or_create_level(price);
         level.add_qty(qty);
         (found_level_type, *level)
     }
 
+    #[instrument]
     #[inline]
     fn delete_qty(
         &mut self,
         price: Price,
         qty: Qty,
     ) -> Result<(DeleteLevelType, PriceLevel<Price, Qty>), BookSideOpsError> {
+        debug!("Called delete_qty");
         let level =
             self.levels
                 .get_mut(&price)
@@ -112,6 +119,7 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     fn create_book_side_with_orders() -> BookSide<u32, u32> {
