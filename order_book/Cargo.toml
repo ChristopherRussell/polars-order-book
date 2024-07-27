@@ -19,7 +19,11 @@ tracing-subscriber = "0.3"
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }
-polars = { version = "*", features = ["polars-io", "csv"], default-features = true }
+polars = { version = "*", features = [
+    "polars-io",
+    "csv",
+    "dtype-array",
+], default-features = true }
 
 [[bench]]
 name = "book_side"
