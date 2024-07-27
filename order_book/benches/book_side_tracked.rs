@@ -6,7 +6,7 @@ use order_book::book_side_tracked::BookSideWithTopNTracking;
 use order_book::book_side_tracked_basic::BookSideWithBasicTracking;
 
 pub fn tracked_book_side_performance_by_nr_levels(c: &mut Criterion) {
-    let mut group = c.benchmark_group("book_side_performance_by_nr_levels");
+    let mut group = c.benchmark_group("tracked_book_side_performance_by_nr_levels");
     for is_bid in [true, false] {
         for nr_levels in [1, 100, 10_000] {
             let mut book_1_basic: BookSideWithBasicTracking<i64, i64> =

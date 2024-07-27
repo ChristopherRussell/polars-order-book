@@ -5,11 +5,12 @@ use order_book::book_side::BookSide;
 use order_book::book_side_ops::BookSideOps;
 
 pub fn book_side_simple(c: &mut Criterion) {
+    let mut group = c.benchmark_group("untracked_book_side");
     let mut book = black_box(BookSide::new(true));
     let prices = [1i64, 2, 3, 1, 2, 3, 3, 1, 2, 3, 1, 2];
     let quantities = [1i64, 2, 3, 1, 2, 3, -3, -1, -2, -3, -1, -2];
 
-    c.bench_function("book_side_simple", |b| {
+    group.bench_function("simple", |b| {
         b.iter(|| {
             black_box({
                 for (price, qty) in izip!(prices.into_iter(), quantities.into_iter()) {
@@ -26,7 +27,7 @@ pub fn book_side_simple(c: &mut Criterion) {
 }
 
 pub fn book_side_performance_by_nr_levels(c: &mut Criterion) {
-    let mut group = c.benchmark_group("book_side_performance_by_nr_levels");
+    let mut group = c.benchmark_group("untracked_book_side");
     for is_bid in [true, false] {
         for nr_levels in [1, 100, 10_000] {
             let mut book = black_box(BookSide::new(is_bid));
