@@ -312,7 +312,6 @@ fn apply_simple_mutation<const N: usize>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tracing_subscriber;
 
     #[test]
     fn test_calculate_bbo_from_simple_mutations2() {
@@ -340,7 +339,7 @@ mod tests {
 
         for level in 1..=2 {
             let bbo_struct = _pl_calculate_bbo(&df.get_columns(), level).unwrap();
-            let mut df_with_bbo = df
+            let df_with_bbo = df
                 .clone()
                 .with_column(bbo_struct)
                 .expect("Failed to add BBO struct series to DataFrame")
@@ -413,7 +412,6 @@ mod tests {
 
     #[test]
     fn test_calculate_bbo_with_modifies_cyclic() {
-        // tracing_subscriber::fmt().init();
         let df = df! {
             "price" => vec![1i64, 6, 2,3,1, 5,4,6],
             "qty" => vec![1i64, 6, 2,3,1, 5,4,6],
