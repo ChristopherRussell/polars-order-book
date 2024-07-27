@@ -15,6 +15,15 @@ pub struct BookSideWithTopNTracking<Price, Qty, const N: usize> {
     top_n_levels: NLevels<Price, Qty, N>,
 }
 
+impl<Price: Debug, Qty: Debug, const N: usize> Debug for BookSideWithTopNTracking<Price, Qty, N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "BookSideWithTop-{}Tracking {{ top-levels: {:?} }}",
+            N, self.top_n_levels
+        )
+    }
+}
 impl<Price: Ord + Hash + Copy + Debug, Qty: Num + Ord + Debug + Copy, const N: usize>
     BookSideWithTopNTracking<Price, Qty, N>
 {

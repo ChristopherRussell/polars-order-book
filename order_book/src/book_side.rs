@@ -22,12 +22,19 @@ pub enum DeleteLevelType {
     QuantityDecreased,
 }
 
-#[derive(Debug)]
 pub struct BookSide<Price, Qty> {
     pub is_bid: bool,
     pub levels: HashMap<Price, PriceLevel<Price, Qty>>,
 }
 
+impl<Price: Debug, Qty: Debug> Debug for BookSide<Price, Qty> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.is_bid {
+            true => write!(f, "BidBookSide {{ levels: {:?} }}", self.levels),
+            false => write!(f, "AskBookSide {{ levels: {:?} }}", self.levels),
+        }
+    }
+}
 impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord + Num>
     BookSide<Price, Qty>
 {

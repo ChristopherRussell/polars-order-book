@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use crate::price_level::PriceLevel;
 
 /// Trait for book side operations with top N tracking.
@@ -22,6 +23,15 @@ pub struct NLevels<Price, Qty, const N: usize> {
     pub worst_price: Option<Price>,
 }
 
+impl<Price: Debug, Qty: Debug, const N: usize> Debug for NLevels<Price, Qty, N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}-Levels {{ levels: {:?}, worst: {:?} }}",
+            N, self.levels, self.worst_price
+        )
+    }
+}
 impl<Price, Qty, const N: usize> NLevels<Price, Qty, N> {
     pub(crate) fn new() -> Self {
         Self::default()

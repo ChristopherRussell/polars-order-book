@@ -11,6 +11,15 @@ pub struct OrderBookWithTopNTracking<Price, Qty, const N: usize> {
     pub offers: BookSideWithTopNTracking<Price, Qty, N>,
 }
 
+impl<Price: Debug, Qty: Debug, const N: usize> Debug for OrderBookWithTopNTracking<Price, Qty, N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "OrderBookWithTopNTracking-{}Tracking {{ Bids: {:?}, Asks: {:?} }}",
+            N, self.bids, self.offers
+        )
+    }
+}
 impl<
         Price: Copy + Debug + Display + Hash + Ord,
         Qty: Copy + Debug + Display + Num + Ord,
