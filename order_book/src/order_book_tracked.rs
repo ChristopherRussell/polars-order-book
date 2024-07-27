@@ -3,6 +3,8 @@ use std::hash::Hash;
 
 use anyhow::Context;
 use num::traits::Num;
+use tracing::{debug, instrument};
+
 use crate::book_side_ops::BookSideOps;
 use crate::book_side_tracked::BookSideWithTopNTracking;
 
@@ -57,6 +59,7 @@ impl<
         self.book_side(is_bid).add_qty(price, qty);
     }
 
+    #[instrument]
     pub fn modify_qty(
         &mut self,
         is_bid: bool,
@@ -65,6 +68,7 @@ impl<
         new_price: Price,
         new_qty: Qty,
     ) {
+        debug!("Applying modify as an delete then an add.");
         self.delete_qty(is_bid, prev_price, prev_qty);
         self.add_qty(is_bid, new_price, new_qty);
     }

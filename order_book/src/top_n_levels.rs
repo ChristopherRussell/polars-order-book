@@ -1,4 +1,7 @@
 use std::fmt::Debug;
+
+use tracing::{debug, instrument};
+
 use crate::price_level::PriceLevel;
 
 /// Trait for book side operations with top N tracking.
@@ -65,7 +68,7 @@ impl<Price: Copy, Qty: Copy, const N: usize> NLevels<Price, Qty, N> {
 /// e.g. less than 10, so that something like a binary search is not magnitudes better
 /// in the worst case.
 /// TODO: X_sort methods could be expressed more generally, i.e. without mentioning Price and Qty.
-impl<Price: Ord + PartialOrd + Clone + Copy, Qty: Clone + Copy, const N: usize>
+impl<Price: Ord + PartialOrd + Clone + Copy + Debug, Qty: Clone + Copy + Debug, const N: usize>
     NLevels<Price, Qty, N>
 {
     /// Insert a new level into the *already sorted* levels array,
@@ -75,12 +78,14 @@ impl<Price: Ord + PartialOrd + Clone + Copy, Qty: Clone + Copy, const N: usize>
     pub fn try_insert_sort(&mut self, new_level: PriceLevel<Price, Qty>) {
         if let Some(worst_price) = self.worst_price {
             if worst_price > new_level.price {
+                debug!("price below worst tracked price, ignoring");
                 return;
             }
         }
         self.insert_sort(new_level);
     }
 
+    #[instrument]
     pub fn insert_sort(&mut self, new_level: PriceLevel<Price, Qty>) {
         // TODO - optimisation: may be faster to insert at the last non-None entry, so we can
         // rotate a shorter slice.
@@ -97,6 +102,7 @@ impl<Price: Ord + PartialOrd + Clone + Copy, Qty: Clone + Copy, const N: usize>
             }
         }
         if let Some(insertion_point) = insertion_point {
+            debug!("Insertion point: {}", insertion_point);
             self.levels[insertion_point..].rotate_right(1);
         }
         self.worst_price = self.levels[N - 1].map(|level| level.price);
@@ -116,6 +122,7 @@ impl<Price: Ord + PartialOrd + Clone + Copy, Qty: Clone + Copy, const N: usize>
         self.insert_sort_reversed(new_level);
     }
 
+    #[instrument]
     pub fn insert_sort_reversed(&mut self, new_level: PriceLevel<Price, Qty>) {
         let new_price = new_level.price;
         self.levels[N - 1] = Some(new_level);
@@ -130,6 +137,7 @@ impl<Price: Ord + PartialOrd + Clone + Copy, Qty: Clone + Copy, const N: usize>
             }
         }
         if let Some(insertion_point) = insertion_point {
+            debug!("Insertion point: {}", insertion_point);
             self.levels[insertion_point..].rotate_right(1);
         }
         self.worst_price = self.levels[N - 1].map(|level| level.price);
@@ -138,6 +146,7 @@ impl<Price: Ord + PartialOrd + Clone + Copy, Qty: Clone + Copy, const N: usize>
     /// Replace an existing level with a new level, and re-order so that the array remains sorted.
     /// Assumes that the array is *already sorted*, and ordered from largest to smallest, with Nones
     /// at the right. Also assumes that price_to_replace is in the array.
+    #[instrument]
     pub fn replace_sort(
         &mut self,
         price_to_replace: Price,
@@ -146,24 +155,30 @@ impl<Price: Ord + PartialOrd + Clone + Copy, Qty: Clone + Copy, const N: usize>
         for (i, entry) in self.levels.iter_mut().enumerate() {
             if let Some(level) = entry {
                 if level.price == price_to_replace {
+                    debug!("Found level to replace {:?}", level);
+                    self.worst_price = new_level.map(|level| level.price);
                     *entry = new_level;
                     // TODO - optimisation: we rotate more entries than necessary in the case
                     // where some entries are None. Could be faster to avoid this.
                     self.levels[i..].rotate_left(1);
-                    break;
+                    return;
                 }
             }
         }
+        debug!("Iterated through levels but did not replace any");
     }
 
+    #[instrument]
     pub fn update_qty(&mut self, price: Price, new_qty: Qty) {
         // TODO - optimisation: could check against worst qty to avoid iterating over all levels.
         for level in self.levels.iter_mut().flatten() {
             if level.price == price {
+                debug!("Updating qty for level: {:?}", level);
                 level.qty = new_qty;
-                break;
+                return;
             }
         }
+        debug!("Iterated through levels but did not update any");
     }
 }
 
