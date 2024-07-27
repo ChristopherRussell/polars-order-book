@@ -1416,10 +1416,13 @@ dependencies = [
  "num",
  "order-book",
  "polars",
+ "polars-arrow",
  "pyo3",
  "pyo3-polars",
  "serde",
  "thiserror",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
