@@ -4,15 +4,15 @@ use std::hash::Hash;
 use anyhow::Context;
 use num::traits::Num;
 
-use crate::book_side_tracked_basic::BookSide;
+use crate::book_side_tracked_basic::BookSideWithBasicTracking;
 
-pub struct OrderBook<Price, Qty> {
-    bids: BookSide<Price, Qty>,
-    offers: BookSide<Price, Qty>,
+pub struct OrderBookWithBasicTracking<Price, Qty> {
+    bids: BookSideWithBasicTracking<Price, Qty>,
+    offers: BookSideWithBasicTracking<Price, Qty>,
 }
 
 impl<Price: Copy + Debug + Display + Hash + Ord, Qty: Copy + Debug + Display + Num + Ord> Default
-    for OrderBook<Price, Qty>
+    for OrderBookWithBasicTracking<Price, Qty>
 {
     fn default() -> Self {
         Self::new()
@@ -20,17 +20,17 @@ impl<Price: Copy + Debug + Display + Hash + Ord, Qty: Copy + Debug + Display + N
 }
 
 impl<Price: Copy + Debug + Display + Hash + Ord, Qty: Copy + Debug + Display + Num + Ord>
-    OrderBook<Price, Qty>
+    OrderBookWithBasicTracking<Price, Qty>
 {
     pub fn new() -> Self {
-        OrderBook {
-            bids: BookSide::new(true),
-            offers: BookSide::new(false),
+        OrderBookWithBasicTracking {
+            bids: BookSideWithBasicTracking::new(true),
+            offers: BookSideWithBasicTracking::new(false),
         }
     }
 
     #[inline]
-    pub fn book_side(&mut self, is_bid: bool) -> &mut BookSide<Price, Qty> {
+    pub fn book_side(&mut self, is_bid: bool) -> &mut BookSideWithBasicTracking<Price, Qty> {
         if is_bid {
             &mut self.bids
         } else {
@@ -74,7 +74,7 @@ mod tests {
     #[test]
     fn test_add_qty() {
         let price = 100;
-        let mut order_book = OrderBook::default();
+        let mut order_book = OrderBookWithBasicTracking::default();
         for is_bid in [true, false].iter() {
             let mut current_qty = 0;
             for _ in 0..10 {
@@ -89,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_cancel_order() {
-        let mut order_book = OrderBook::default();
+        let mut order_book = OrderBookWithBasicTracking::default();
         order_book.add_qty(true, 100, 10);
         assert_eq!(order_book.book_side(true).get_level(100).unwrap().qty, 10);
         order_book.delete_qty(true, 100, 10);
@@ -106,7 +106,7 @@ mod tests {
     #[test]
     fn test_modify_qty() {
         for is_bid in vec![true, false] {
-            let mut order_book = OrderBook::default();
+            let mut order_book = OrderBookWithBasicTracking::default();
             order_book.add_qty(is_bid, 100, 10);
             assert_eq!(order_book.book_side(is_bid).get_level(100).unwrap().qty, 10);
             order_book.modify_qty(is_bid, 100, 10, 100, 20);
@@ -117,7 +117,7 @@ mod tests {
     #[test]
     fn test_modify_price() {
         for is_bid in vec![true, false] {
-            let mut order_book = OrderBook::default();
+            let mut order_book = OrderBookWithBasicTracking::default();
             order_book.add_qty(is_bid, 1, 1);
             assert_eq!(order_book.book_side(is_bid).get_level(1).unwrap().qty, 1);
             order_book.modify_qty(is_bid, 1, 1, 2, 2);

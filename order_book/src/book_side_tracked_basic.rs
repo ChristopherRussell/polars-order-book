@@ -27,7 +27,7 @@ pub enum DeleteError {
 }
 
 #[derive(Debug)]
-pub struct BookSide<Price, Qty> {
+pub struct BookSideWithBasicTracking<Price, Qty> {
     is_bid: bool,
     levels: HashMap<Price, PriceLevel<Price, Qty>>,
     pub best_price: Option<Price>,
@@ -35,11 +35,11 @@ pub struct BookSide<Price, Qty> {
 }
 
 impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord + Num>
-    BookSide<Price, Qty>
+    BookSideWithBasicTracking<Price, Qty>
 {
     #[must_use]
     pub fn new(is_bid: bool) -> Self {
-        BookSide {
+        BookSideWithBasicTracking {
             is_bid,
             levels: HashMap::new(),
             best_price: None,
@@ -157,8 +157,8 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
 mod tests {
     use super::*;
 
-    fn create_book_side_with_orders() -> BookSide<u32, u32> {
-        let mut book_side = BookSide::new(true);
+    fn create_book_side_with_orders() -> BookSideWithBasicTracking<u32, u32> {
+        let mut book_side = BookSideWithBasicTracking::new(true);
         book_side.add_qty(1, 100);
         book_side.add_qty(2, 100);
         book_side.add_qty(3, 101);
@@ -168,11 +168,11 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let book_side: BookSide<u32, u32> = BookSide::new(true);
+        let book_side: BookSideWithBasicTracking<u32, u32> = BookSideWithBasicTracking::new(true);
         assert!(book_side.is_bid);
         assert_eq!(book_side.levels.len(), 0);
 
-        let book_side: BookSide<u32, u32> = BookSide::new(false);
+        let book_side: BookSideWithBasicTracking<u32, u32> = BookSideWithBasicTracking::new(false);
         assert!(!book_side.is_bid);
         assert_eq!(book_side.levels.len(), 0);
     }
@@ -182,7 +182,7 @@ mod tests {
         for is_bid in vec![false, true] {
             let qty = 5;
             let price = 100;
-            let mut book_side = BookSide::new(is_bid);
+            let mut book_side = BookSideWithBasicTracking::new(is_bid);
             assert_eq!(book_side.best_price, None);
             assert_eq!(book_side.best_price_qty, None);
             book_side.add_qty(price, qty);
@@ -225,7 +225,7 @@ mod tests {
     }
 
     fn assert_qty_added(
-        book_side: &BookSide<u32, u32>,
+        book_side: &BookSideWithBasicTracking<u32, u32>,
         price: u32,
         qty: u32,
         qty_before: u32,
@@ -243,7 +243,7 @@ mod tests {
 
     #[test]
     fn test_delete_qty() {
-        let mut book_side = BookSide::new(true);
+        let mut book_side = BookSideWithBasicTracking::new(true);
         let (price, qty) = (100, 10);
         book_side.add_qty(price, qty);
         assert_eq!(book_side.best_price, Some(price));
@@ -257,7 +257,7 @@ mod tests {
 
     #[test]
     fn test_best_price_after_add_better() {
-        let mut book_side = BookSide::new(true);
+        let mut book_side = BookSideWithBasicTracking::new(true);
         book_side.add_qty(100, 10);
         assert_eq!(book_side.best_price, Some(100));
         assert_eq!(book_side.best_price_qty, Some(10));
@@ -266,7 +266,7 @@ mod tests {
         assert_eq!(book_side.best_price, Some(101));
         assert_eq!(book_side.best_price_qty, Some(20));
 
-        let mut book_side = BookSide::new(false);
+        let mut book_side = BookSideWithBasicTracking::new(false);
         book_side.add_qty(101, 20);
         assert_eq!(book_side.best_price, Some(101));
         assert_eq!(book_side.best_price_qty, Some(20));
@@ -279,7 +279,7 @@ mod tests {
     #[test]
     fn test_best_price_modify_quantity() {
         for is_bid in vec![true, false] {
-            let mut book_side = BookSide::new(is_bid);
+            let mut book_side = BookSideWithBasicTracking::new(is_bid);
             book_side.add_qty(100, 10);
             assert_eq!(book_side.best_price, Some(100));
             assert_eq!(book_side.best_price_qty, Some(10));
@@ -300,7 +300,7 @@ mod tests {
 
     #[test]
     fn test_modify_price() {
-        let mut book_side = BookSide::new(true);
+        let mut book_side = BookSideWithBasicTracking::new(true);
         book_side.add_qty(100, 10);
         assert_eq!(book_side.best_price, Some(100));
         assert_eq!(book_side.best_price_qty, Some(10));
