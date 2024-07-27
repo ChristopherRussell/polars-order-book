@@ -2,6 +2,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use itertools::izip;
 use polars::io::SerReader;
 use polars::prelude::CsvReader;
+use std::path::PathBuf;
 
 use order_book::order_book::OrderBook;
 use order_book::order_book_tracked::OrderBookWithTopNTracking;
@@ -17,7 +18,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let mut book_2: OrderBookWithTopNTracking<i64, i64, 2> = black_box(OrderBookWithTopNTracking::new());
     let mut book_5: OrderBookWithTopNTracking<i64, i64, 5> = black_box(OrderBookWithTopNTracking::new());
 
-    let data = CsvReader::from_path("ninja_order_book.csv")
+    let mut test_data_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    test_data_path.push("benches/ninja_order_book.csv");
+    let data = CsvReader::from_path(test_data_path)
         .unwrap()
         .finish()
         .unwrap();
