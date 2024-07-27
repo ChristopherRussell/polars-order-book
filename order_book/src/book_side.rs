@@ -61,6 +61,7 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
             .iter()
             .sorted_unstable_by_key(|(price, _)| *price)
             .map(|(_, level)| *level);
+        debug!("Getting {:?}'th best level", n);
         if self.is_bid {
             sorted.nth_back(n)
         } else {
@@ -126,18 +127,16 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
-
-    fn create_book_side_with_orders() -> BookSide<u32, u32> {
-        let mut book_side = BookSide::new(true);
+    
+    fn create_book_side_with_orders(is_bid: bool) -> BookSide<u32, u32> {
+        let mut book_side = BookSide::new(is_bid);
         book_side.add_qty(1, 100);
         book_side.add_qty(2, 100);
         book_side.add_qty(3, 101);
         book_side.add_qty(4, 98);
         book_side
     }
-
     #[test]
     fn test_new() {
         let book_side: BookSide<u32, u32> = BookSide::new(true);
@@ -167,28 +166,29 @@ mod tests {
             qty: u32,
         }
 
-        let test_cases = vec![
-            TestCase {
-                price: 100,
-                qty: 10,
-            },
-            TestCase {
-                price: 100,
-                qty: 20,
-            },
-            TestCase {
-                price: 101,
-                qty: 30,
-            },
-            TestCase { price: 98, qty: 40 },
-        ];
-
-        for TestCase { price, qty } in test_cases {
-            let mut book_side = create_book_side_with_orders();
-            let num_levels_before = book_side.levels.len();
-            let qty_before = book_side.levels.get(&price).map_or(0, |l| l.qty);
-            book_side.add_qty(price, qty);
-            assert_qty_added(&book_side, price, qty, qty_before, num_levels_before);
+        for is_bid in [false, true] {
+            let test_cases = vec![
+                TestCase {
+                    price: 100,
+                    qty: 10,
+                },
+                TestCase {
+                    price: 100,
+                    qty: 20,
+                },
+                TestCase {
+                    price: 101,
+                    qty: 30,
+                },
+                TestCase { price: 98, qty: 40 },
+            ];
+            for TestCase { price, qty } in test_cases {
+                let mut book_side = create_book_side_with_orders(is_bid);
+                let num_levels_before = book_side.levels.len();
+                let qty_before = book_side.levels.get(&price).map_or(0, |l| l.qty);
+                book_side.add_qty(price, qty);
+                assert_qty_added(&book_side, price, qty, qty_before, num_levels_before);
+            }
         }
     }
 
@@ -216,5 +216,121 @@ mod tests {
         book_side.add_qty(price, qty);
         book_side.delete_qty(price, qty).unwrap();
         assert_eq!(book_side.levels.len(), 0);
+    }
+
+    #[test]
+    fn test_get_nth_best_level_bid() {
+        let mut book_side = create_book_side_with_orders(true);
+
+        assert_eq!(
+            book_side.get_nth_best_level(0),
+            Some(PriceLevel { price: 4, qty: 98 })
+        );
+
+        assert_eq!(
+            book_side.get_nth_best_level(1),
+            Some(PriceLevel { price: 3, qty: 101 })
+        );
+
+        assert_eq!(
+            book_side.get_nth_best_level(2),
+            Some(PriceLevel { price: 2, qty: 100 })
+        );
+
+        assert_eq!(
+            book_side.get_nth_best_level(3),
+            Some(PriceLevel { price: 1, qty: 100 })
+        );
+
+        // Non-existent level
+        assert_eq!(book_side.get_nth_best_level(4), None);
+
+        book_side.delete_qty(3, 101).unwrap();
+        assert_eq!(
+            book_side.get_nth_best_level(0),
+            Some(PriceLevel { price: 4, qty: 98 })
+        );
+        assert_eq!(
+            book_side.get_nth_best_level(1),
+            Some(PriceLevel { price: 2, qty: 100 })
+        );
+        assert_eq!(
+            book_side.get_nth_best_level(2),
+            Some(PriceLevel { price: 1, qty: 100 })
+        );
+        assert_eq!(book_side.get_nth_best_level(3), None);
+
+        book_side.delete_qty(1, 100).unwrap();
+        assert_eq!(
+            book_side.get_nth_best_level(0),
+            Some(PriceLevel { price: 4, qty: 98 })
+        );
+        assert_eq!(
+            book_side.get_nth_best_level(1),
+            Some(PriceLevel { price: 2, qty: 100 })
+        );
+        assert_eq!(book_side.get_nth_best_level(2), None);
+
+        book_side.delete_qty(4, 98).unwrap();
+        assert_eq!(
+            book_side.get_nth_best_level(0),
+            Some(PriceLevel { price: 2, qty: 100 })
+        );
+        assert_eq!(book_side.get_nth_best_level(1), None);
+
+    }
+
+    #[test]
+    fn test_get_nth_best_level_ask() {
+        let mut book_side = create_book_side_with_orders(false);
+
+        assert_eq!(
+            book_side.get_nth_best_level(0),
+            Some(PriceLevel { price: 1, qty: 100 })
+        );
+
+        assert_eq!(
+            book_side.get_nth_best_level(1),
+            Some(PriceLevel { price: 2, qty: 100 })
+        );
+
+        assert_eq!(
+            book_side.get_nth_best_level(2),
+            Some(PriceLevel { price: 3, qty: 101 })
+        );
+
+        assert_eq!(
+            book_side.get_nth_best_level(3),
+            Some(PriceLevel { price: 4, qty: 98 })
+        );
+
+        // Non-existent level
+        assert_eq!(book_side.get_nth_best_level(4), None);
+
+        book_side.delete_qty(1, 100).unwrap();
+        assert_eq!(
+            book_side.get_nth_best_level(0),
+            Some(PriceLevel { price: 2, qty: 100 })
+        );
+        assert_eq!(
+            book_side.get_nth_best_level(1),
+            Some(PriceLevel { price: 3, qty: 101 })
+        );
+        assert_eq!(
+            book_side.get_nth_best_level(2),
+            Some(PriceLevel { price: 4, qty: 98 })
+        );
+        assert_eq!(book_side.get_nth_best_level(3), None);
+
+        book_side.delete_qty(4, 98).unwrap();
+        assert_eq!(
+            book_side.get_nth_best_level(0),
+            Some(PriceLevel { price: 2, qty: 100 })
+        );
+        assert_eq!(
+            book_side.get_nth_best_level(1),
+            Some(PriceLevel { price: 3, qty: 101 })
+        );
+        assert_eq!(book_side.get_nth_best_level(2), None);
     }
 }
