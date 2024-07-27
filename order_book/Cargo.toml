@@ -30,6 +30,10 @@ name = "book_side"
 harness = false
 
 [[bench]]
+name = "book_side_tracked"
+harness = false
+
+[[bench]]
 name = "order_book"
 harness = false
 
