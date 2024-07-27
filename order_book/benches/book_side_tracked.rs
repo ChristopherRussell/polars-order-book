@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use itertools::izip;
 
 use order_book::book_side_ops::BookSideOps;
@@ -47,12 +47,12 @@ pub fn tracked_book_side_performance_by_nr_levels(c: &mut Criterion) {
                 (best_px, best_qty, best_px - 1, best_qty - 1)
             };
             group.bench_function(
-                format!("{}_{}_basic_1_level", nr_levels, side_name).as_str(),
+                BenchmarkId::new(format!("{}_basic_1_level", side_name).as_str(), nr_levels),
                 |b| {
                     b.iter(|| {
                         black_box({
                             // Repeatedly modify best px to next px and back
-                            for _ in 0..500 {
+                            for _ in 0..100 {
                                 book_1_basic.delete_qty(best_px, best_qty).unwrap();
                                 book_1_basic.add_qty(next_px, next_qty);
                                 book_1_basic.delete_qty(next_px, next_qty).unwrap();
@@ -64,12 +64,12 @@ pub fn tracked_book_side_performance_by_nr_levels(c: &mut Criterion) {
             );
 
             group.bench_function(
-                format!("{}_{}_1_levels", nr_levels, side_name).as_str(),
+                BenchmarkId::new(format!("{}_1_levels", side_name).as_str(), nr_levels),
                 |b| {
                     b.iter(|| {
                         black_box({
                             // Repeatedly modify best px to next px and back
-                            for _ in 0..500 {
+                            for _ in 0..100 {
                                 book_1.delete_qty(best_px, best_qty).unwrap();
                                 book_1.add_qty(next_px, next_qty);
                                 book_1.delete_qty(next_px, next_qty).unwrap();
@@ -81,12 +81,12 @@ pub fn tracked_book_side_performance_by_nr_levels(c: &mut Criterion) {
             );
 
             group.bench_function(
-                format!("{}_{}_2_levels", nr_levels, side_name).as_str(),
+                BenchmarkId::new(format!("{}_2_levels", side_name).as_str(), nr_levels),
                 |b| {
                     b.iter(|| {
                         black_box({
                             // Repeatedly modify best px to next px and back
-                            for _ in 0..500 {
+                            for _ in 0..100 {
                                 book_2.delete_qty(best_px, best_qty).unwrap();
                                 book_2.add_qty(next_px, next_qty);
                                 book_2.delete_qty(next_px, next_qty).unwrap();
@@ -97,12 +97,12 @@ pub fn tracked_book_side_performance_by_nr_levels(c: &mut Criterion) {
                 },
             );
             group.bench_function(
-                format!("{}_{}_5_levels", nr_levels, side_name).as_str(),
+                BenchmarkId::new(format!("{}_5_levels", side_name).as_str(), nr_levels),
                 |b| {
                     b.iter(|| {
                         black_box({
                             // Repeatedly modify best px to next px and back
-                            for _ in 0..500 {
+                            for _ in 0..100 {
                                 book_5.delete_qty(best_px, best_qty).unwrap();
                                 book_5.add_qty(next_px, next_qty);
                                 book_5.delete_qty(next_px, next_qty).unwrap();

@@ -1,16 +1,15 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use itertools::izip;
 
 use order_book::book_side::BookSide;
 use order_book::book_side_ops::BookSideOps;
 
 pub fn book_side_simple(c: &mut Criterion) {
-    let mut group = c.benchmark_group("untracked_book_side");
     let mut book = black_box(BookSide::new(true));
     let prices = [1i64, 2, 3, 1, 2, 3, 3, 1, 2, 3, 1, 2];
     let quantities = [1i64, 2, 3, 1, 2, 3, -3, -1, -2, -3, -1, -2];
 
-    group.bench_function("simple", |b| {
+    c.bench_function("untracked_simple", |b| {
         b.iter(|| {
             black_box({
                 for (price, qty) in izip!(prices.into_iter(), quantities.into_iter()) {
@@ -47,7 +46,7 @@ pub fn book_side_performance_by_nr_levels(c: &mut Criterion) {
                 (best_px, best_qty, best_px - 1, best_qty - 1)
             };
             group.bench_function(
-                format!("{}_{}_levels", nr_levels, side_name).as_str(),
+                BenchmarkId::new(side_name,nr_levels),
                 |b| {
                     b.iter(|| {
                         black_box({
