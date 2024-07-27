@@ -2,6 +2,8 @@
 *.pyc
 target
 output
-*.idea
+.idea
 *.ipynb
 pyrightconfig.json
+.ruff_cache
+.pytest_cache
