@@ -278,7 +278,7 @@ mod tests {
 
     #[test]
     fn test_best_price_modify_quantity() {
-        for is_bid in [true, false]{
+        for is_bid in [true, false] {
             let mut book_side = BookSideWithBasicTracking::new(is_bid);
             book_side.add_qty(100, 10);
             assert_eq!(book_side.best_price, Some(100));
