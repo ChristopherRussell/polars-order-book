@@ -84,7 +84,7 @@ impl<
                 )
             }
             // Insert new top_n bid
-            (FoundLevelType::New, true, _) => {
+            (FoundLevelType::New, true, Some(Ordering::Greater) | None) => {
                 self.top_n_levels.insert_sort(PriceLevel {
                     price: added_price,
                     qty: added_qty,
@@ -95,7 +95,7 @@ impl<
                 )
             }
             // Insert new top_n ask
-            (FoundLevelType::New, false, _) => {
+            (FoundLevelType::New, false, Some(Ordering::Less) | None) => {
                 self.top_n_levels.insert_sort_reversed(PriceLevel {
                     price: added_price,
                     qty: added_qty,
@@ -104,6 +104,9 @@ impl<
                     "Inserted new top_n ask. Price: {:?}, Qty: {:?}",
                     added_price, added_qty
                 )
+            }
+            (FoundLevelType::New, _, Some(Ordering::Equal)) => {
+                unreachable!("Should not have found a new level at worst price - an existing level")
             }
         }
         (
