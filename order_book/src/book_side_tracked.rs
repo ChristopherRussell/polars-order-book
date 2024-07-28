@@ -76,6 +76,14 @@ impl<
                 );
             }
             // Adding qty to existing tracked price
+            (FoundLevelType::Existing, _, Some(Ordering::Equal)) => {
+                self.top_n_levels.levels.iter_mut().last().expect("There is a last element").expect("Last price level exists because worst_price not None").qty = added_qty;
+                debug!(
+                    "Updated qty at worst tracked level. Price: {:?}, Qty: {:?}",
+                    added_price, added_qty
+                )
+            }
+            // Adding qty to existing tracked price - note if worst_price is None then existing price must be tracked
             (FoundLevelType::Existing, _, _) => {
                 self.top_n_levels.update_qty(added_price, added_qty);
                 debug!(
