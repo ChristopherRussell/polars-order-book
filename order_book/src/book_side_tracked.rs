@@ -179,6 +179,7 @@ mod tests {
 
     use super::*;
 
+    #[allow(clippy::type_complexity)]
     fn create_books() -> (
         BookSideWithTopNTracking<i32, i32, 1>,
         BookSideWithTopNTracking<i32, i32, 2>,
