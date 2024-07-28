@@ -53,9 +53,9 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
 
     #[inline]
     pub fn get_nth_best_level(&self, n: usize) -> Option<PriceLevel<Price, Qty>> {
-        // TODO-optimisation: Consider replacing self.levels HashMap with a BTreeMap.
-        // This function will be costly when called too often & when there are many
-        // levels.
+        // Have considered replacing self.levels HashMap with a BTreeMap, but the slowdown
+        // for operations other than getting nth best level does not seem worth it during
+        // tracking unless order book has a lot of levels (~1000+)
         let mut sorted = self
             .levels
             .iter()
@@ -95,7 +95,7 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
         match self.levels.entry(price) {
             hashbrown::hash_map::Entry::Occupied(o) => {
                 let level = o.into_mut();
-        level.add_qty(qty);
+                level.add_qty(qty);
                 (FoundLevelType::Existing, *level)
             }
             hashbrown::hash_map::Entry::Vacant(v) => {
