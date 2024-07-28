@@ -10,16 +10,6 @@ use crate::price_level::PriceLevel;
 /// with None representing that there are less than N levels in
 /// total. The array is sorted from best to worst price level.
 /// The array is updated on every add_qty and delete_qty operation.
-///
-/// ??? Should probably track the other prices too, so it's easy to
-/// insert the Nth level after deleting one of the top N.
-///
-/// Adding a new level to top N is easy, just check if the new level
-/// is better than the worst level in top N, if it is, replace the
-/// worst level.
-///
-/// ??? BookSideOpsWithTopNTracking ... do I need ths or just BookSideOps
-/// implemented on different structs (BookSide and BookSideWithTopNTracking)?
 
 pub struct NLevels<Price, Qty, const N: usize> {
     pub levels: [Option<PriceLevel<Price, Qty>>; N],
@@ -170,7 +160,7 @@ impl<Price: Ord + PartialOrd + Clone + Copy + Debug, Qty: Clone + Copy + Debug, 
 
     #[instrument]
     pub fn update_qty(&mut self, price: Price, new_qty: Qty) {
-        // TODO - optimisation: could check against worst qty to avoid iterating over all levels.
+        // TODO - optimisation: could check against worst price to avoid iterating over all levels
         for level in self.levels.iter_mut().flatten() {
             if level.price == price {
                 debug!("Updating qty for level: {:?}", level);
