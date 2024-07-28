@@ -179,7 +179,7 @@ mod tests {
 
     #[test]
     fn test_add_qty_to_empty_book() {
-        for is_bid in vec![false, true] {
+        for is_bid in [false, true] {
             let qty = 5;
             let price = 100;
             let mut book_side = BookSideWithBasicTracking::new(is_bid);
@@ -278,7 +278,7 @@ mod tests {
 
     #[test]
     fn test_best_price_modify_quantity() {
-        for is_bid in vec![true, false] {
+        for is_bid in [true, false]{
             let mut book_side = BookSideWithBasicTracking::new(is_bid);
             book_side.add_qty(100, 10);
             assert_eq!(book_side.best_price, Some(100));

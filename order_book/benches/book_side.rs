@@ -45,22 +45,19 @@ pub fn book_side_performance_by_nr_levels(c: &mut Criterion) {
                 let (best_px, best_qty) = (prices[0], quantities[0]);
                 (best_px, best_qty, best_px - 1, best_qty - 1)
             };
-            group.bench_function(
-                BenchmarkId::new(side_name,nr_levels),
-                |b| {
-                    b.iter(|| {
-                        black_box({
-                            // Repeatedly modify best px to next px and back
-                            for _ in 0..500 {
-                                book.delete_qty(best_px, best_qty).unwrap();
-                                book.add_qty(next_px, next_qty);
-                                book.delete_qty(next_px, next_qty).unwrap();
-                                book.add_qty(best_px, best_qty);
-                            }
-                        })
+            group.bench_function(BenchmarkId::new(side_name, nr_levels), |b| {
+                b.iter(|| {
+                    black_box({
+                        // Repeatedly modify best px to next px and back
+                        for _ in 0..500 {
+                            book.delete_qty(best_px, best_qty).unwrap();
+                            book.add_qty(next_px, next_qty);
+                            book.delete_qty(next_px, next_qty).unwrap();
+                            book.add_qty(best_px, best_qty);
+                        }
                     })
-                },
-            );
+                })
+            });
         }
     }
 }

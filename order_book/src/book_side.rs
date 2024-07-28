@@ -128,7 +128,7 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     fn create_book_side_with_orders(is_bid: bool) -> BookSide<u32, u32> {
         let mut book_side = BookSide::new(is_bid);
         book_side.add_qty(1, 100);
@@ -277,7 +277,6 @@ mod tests {
             Some(PriceLevel { price: 2, qty: 100 })
         );
         assert_eq!(book_side.get_nth_best_level(1), None);
-
     }
 
     #[test]

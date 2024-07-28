@@ -338,7 +338,7 @@ mod tests {
         .unwrap();
 
         for level in 1..=2 {
-            let bbo_struct = _pl_calculate_bbo(&df.get_columns(), level).unwrap();
+            let bbo_struct = _pl_calculate_bbo(df.get_columns(), level).unwrap();
             let df_with_bbo = df
                 .clone()
                 .with_column(bbo_struct)
@@ -388,7 +388,7 @@ mod tests {
             .unwrap();
 
         for level in 1..=2 {
-            let bbo_struct = _pl_calculate_bbo(&df.get_columns(), level).unwrap();
+            let bbo_struct = _pl_calculate_bbo(df.get_columns(), level).unwrap();
             let df_with_bbo = df
                 .clone()
                 .with_column(bbo_struct)
@@ -437,7 +437,7 @@ mod tests {
         }.unwrap();
 
         for level in 1..=2 {
-            let bbo_struct = _pl_calculate_bbo(&df.get_columns(), level).unwrap();
+            let bbo_struct = _pl_calculate_bbo(df.get_columns(), level).unwrap();
             let df_with_bbo = df
                 .clone()
                 .with_column(bbo_struct)

@@ -348,8 +348,5 @@ mod tests {
         n_levels.replace_sort(2, Some(level));
         assert_eq!(n_levels.levels, get_price_levels([4, 6, 8, 10, 12]));
         assert_eq!(n_levels.worst_price, Some(12));
-
-
-
     }
 }
