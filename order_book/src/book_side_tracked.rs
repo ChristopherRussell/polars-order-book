@@ -85,7 +85,7 @@ impl<
             }
             // Insert new top_n bid
             (FoundLevelType::New, true, _) => {
-                self.top_n_levels.try_insert_sort(PriceLevel {
+                self.top_n_levels.insert_sort(PriceLevel {
                     price: added_price,
                     qty: added_qty,
                 });
