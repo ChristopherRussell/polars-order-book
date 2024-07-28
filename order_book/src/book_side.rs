@@ -92,9 +92,17 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
     #[inline]
     fn add_qty(&mut self, price: Price, qty: Qty) -> (FoundLevelType, PriceLevel<Price, Qty>) {
         debug!("Adding quantity to book_side");
-        let (found_level_type, level) = self.find_or_create_level(price);
+        match self.levels.entry(price) {
+            hashbrown::hash_map::Entry::Occupied(o) => {
+                let level = o.into_mut();
         level.add_qty(qty);
-        (found_level_type, *level)
+                (FoundLevelType::Existing, *level)
+            }
+            hashbrown::hash_map::Entry::Vacant(v) => {
+                debug!("Created a new price level");
+                (FoundLevelType::New, *v.insert(PriceLevel { price, qty }))
+            }
+        }
     }
 
     #[instrument]
