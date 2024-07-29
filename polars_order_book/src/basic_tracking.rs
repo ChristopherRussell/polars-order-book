@@ -5,7 +5,9 @@ use polars::prelude::*;
 use pyo3_polars::derive::polars_expr;
 
 use order_book::{
-    book_side_ops::PricePointMutationOps, book_side_tracked_basic::BookSideWithBasicTracking,
+    book_side_ops::PricePointMutationOps,
+    book_side_tracked_basic::BookSideWithBasicTracking,
+    order_book::{BidAskBook, PricePointMutationBookOps},
     order_book_tracked_basic::OrderBookWithBasicTracking,
 };
 

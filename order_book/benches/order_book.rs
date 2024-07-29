@@ -2,7 +2,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use itertools::izip;
 
-use order_book::order_book::OrderBook;
+use order_book::order_book::{OrderBook, PricePointMutationBookOps};
 
 pub fn order_book_simple(c: &mut Criterion) {
     let mut book = black_box(OrderBook::new());

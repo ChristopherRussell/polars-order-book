@@ -1,12 +1,10 @@
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use std::hash::Hash;
 
-use anyhow::Context;
 use num::traits::Num;
-use tracing::{debug, instrument};
 
-use crate::book_side_ops::PricePointMutationOps;
 use crate::book_side_tracked::BookSideWithTopNTracking;
+use crate::order_book::BidAskBook;
 
 pub struct OrderBookWithTopNTracking<Price, Qty, const N: usize> {
     pub bids: BookSideWithTopNTracking<Price, Qty, N>,
@@ -22,22 +20,31 @@ impl<Price: Debug, Qty: Debug, const N: usize> Debug for OrderBookWithTopNTracki
         )
     }
 }
-impl<
-        Price: Copy + Debug + Display + Hash + Ord,
-        Qty: Copy + Debug + Display + Num + Ord,
-        const N: usize,
-    > Default for OrderBookWithTopNTracking<Price, Qty, N>
+
+impl<Price, Qty, const N: usize> BidAskBook<Price, Qty>
+    for OrderBookWithTopNTracking<Price, Qty, N>
+{
+    type BookSide = BookSideWithTopNTracking<Price, Qty, N>;
+
+    fn book_side(&mut self, is_bid: bool) -> &mut BookSideWithTopNTracking<Price, Qty, N> {
+        if is_bid {
+            &mut self.bids
+        } else {
+            &mut self.offers
+        }
+    }
+}
+
+impl<Price: Copy + Debug + Hash + Ord, Qty: Copy + Debug + Num + Ord, const N: usize> Default
+    for OrderBookWithTopNTracking<Price, Qty, N>
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<
-        Price: Copy + Debug + Display + Hash + Ord,
-        Qty: Copy + Debug + Display + Num + Ord,
-        const N: usize,
-    > OrderBookWithTopNTracking<Price, Qty, N>
+impl<Price: Copy + Debug + Hash + Ord, Qty: Copy + Debug + Num + Ord, const N: usize>
+    OrderBookWithTopNTracking<Price, Qty, N>
 {
     pub fn new() -> Self {
         OrderBookWithTopNTracking {
@@ -45,50 +52,12 @@ impl<
             offers: BookSideWithTopNTracking::new(false),
         }
     }
-
-    #[inline]
-    pub fn book_side(&mut self, is_bid: bool) -> &mut BookSideWithTopNTracking<Price, Qty, N> {
-        if is_bid {
-            &mut self.bids
-        } else {
-            &mut self.offers
-        }
-    }
-
-    pub fn add_qty(&mut self, is_bid: bool, price: Price, qty: Qty) {
-        self.book_side(is_bid).add_qty(price, qty);
-    }
-
-    #[instrument]
-    pub fn modify_qty(
-        &mut self,
-        is_bid: bool,
-        prev_price: Price,
-        prev_qty: Qty,
-        new_price: Price,
-        new_qty: Qty,
-    ) {
-        debug!("Applying modify as an delete then an add.");
-        self.delete_qty(is_bid, prev_price, prev_qty);
-        self.add_qty(is_bid, new_price, new_qty);
-    }
-
-    pub fn delete_qty(&mut self, is_bid: bool, price: Price, qty: Qty) {
-        self.book_side(is_bid)
-            .delete_qty(price, qty)
-            .with_context(|| {
-                format!(
-                    "Failed to delete qty from price level: is_bid: {}, price: {}, qty: {}",
-                    is_bid, price, qty
-                )
-            })
-            .unwrap();
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::order_book::PricePointMutationBookOps;
 
     #[test]
     fn test_add_qty() {

@@ -4,18 +4,84 @@ use std::fmt::{Debug, Display};
 use std::hash::Hash;
 
 use crate::book_side::BookSide;
-use crate::book_side_ops::PricePointMutationOps;
+use crate::book_side_ops::{PricePointMutationOps, PricePointSummaryOps};
+
+pub trait BidAskBook<Price, Qty> {
+    type BookSide;
+
+    fn book_side(&mut self, is_bid: bool) -> &mut Self::BookSide;
+}
+
+pub trait PricePointMutationBookOps<Price: Debug + Copy, Qty: Debug + Copy>:
+    BidAskBook<Price, Qty, BookSide: PricePointMutationOps<Price, Qty>>
+{
+    fn add_qty(&mut self, is_bid: bool, price: Price, qty: Qty) {
+        self.book_side(is_bid).add_qty(price, qty);
+    }
+
+    fn delete_qty(&mut self, is_bid: bool, price: Price, qty: Qty) {
+        self.book_side(is_bid)
+            .delete_qty(price, qty)
+            .with_context(|| {
+                format!(
+                    "Failed to delete qty from price level: is_bid: {}, price: {:?}, qty: {:?}",
+                    is_bid, price, qty
+                )
+            })
+            .unwrap();
+    }
+
+    fn modify_qty(
+        &mut self,
+        is_bid: bool,
+        prev_price: Price,
+        prev_qty: Qty,
+        new_price: Price,
+        new_qty: Qty,
+    ) {
+        self.delete_qty(is_bid, prev_price, prev_qty);
+        self.add_qty(is_bid, new_price, new_qty);
+    }
+}
+
+pub trait PricePointSummaryBookOps<Price: Debug + Copy, Qty: Debug + Copy>:
+    BidAskBook<Price, Qty, BookSide: PricePointSummaryOps<Price, Qty>>
+{
+    fn set_level(&mut self, is_bid: bool, price: Price, qty: Qty) {
+        self.book_side(is_bid).set_level(price, qty);
+    }
+}
+
+impl<Price, Qty, Book> PricePointMutationBookOps<Price, Qty> for Book
+where
+    Price: Debug + Copy,
+    Qty: Debug + Copy,
+    Book: BidAskBook<Price, Qty, BookSide: PricePointMutationOps<Price, Qty>>,
+{
+}
+
+impl<Price, Qty, Book> PricePointSummaryBookOps<Price, Qty> for Book
+where
+    Price: Debug + Copy,
+    Qty: Debug + Copy,
+    Book: BidAskBook<Price, Qty, BookSide: PricePointSummaryOps<Price, Qty>>,
+{
+}
 
 pub struct OrderBook<Price, Qty> {
     bids: BookSide<Price, Qty>,
     offers: BookSide<Price, Qty>,
 }
 
-impl<Price: Copy + Debug + Display + Hash + Ord, Qty: Copy + Debug + Display + Num + Ord> Default
-    for OrderBook<Price, Qty>
-{
-    fn default() -> Self {
-        Self::new()
+impl<Price, Qty> BidAskBook<Price, Qty> for OrderBook<Price, Qty> {
+    type BookSide = BookSide<Price, Qty>;
+
+    fn book_side(&mut self, is_bid: bool) -> &mut BookSide<Price, Qty> {
+        if is_bid {
+            &mut self.bids
+        } else {
+            &mut self.offers
+        }
     }
 }
 
@@ -28,42 +94,13 @@ impl<Price: Copy + Debug + Display + Hash + Ord, Qty: Copy + Debug + Display + N
             offers: BookSide::new(false),
         }
     }
+}
 
-    #[inline]
-    pub fn book_side(&mut self, is_bid: bool) -> &mut BookSide<Price, Qty> {
-        if is_bid {
-            &mut self.bids
-        } else {
-            &mut self.offers
-        }
-    }
-
-    pub fn add_qty(&mut self, is_bid: bool, price: Price, qty: Qty) {
-        self.book_side(is_bid).add_qty(price, qty);
-    }
-
-    pub fn modify_qty(
-        &mut self,
-        is_bid: bool,
-        prev_price: Price,
-        prev_qty: Qty,
-        new_price: Price,
-        new_qty: Qty,
-    ) {
-        self.delete_qty(is_bid, prev_price, prev_qty);
-        self.add_qty(is_bid, new_price, new_qty);
-    }
-
-    pub fn delete_qty(&mut self, is_bid: bool, price: Price, qty: Qty) {
-        self.book_side(is_bid)
-            .delete_qty(price, qty)
-            .with_context(|| {
-                format!(
-                    "Failed to delete qty from price level: is_bid: {}, price: {}, qty: {}",
-                    is_bid, price, qty
-                )
-            })
-            .unwrap();
+impl<Price: Copy + Debug + Display + Hash + Ord, Qty: Copy + Debug + Display + Num + Ord> Default
+    for OrderBook<Price, Qty>
+{
+    fn default() -> Self {
+        Self::new()
     }
 }
 
