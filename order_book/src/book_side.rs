@@ -71,26 +71,11 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
 
     #[instrument]
     #[inline]
-    pub fn find_or_create_level(
+    fn find_or_create_level_and_add_qty(
         &mut self,
         price: Price,
-    ) -> (FoundLevelType, &mut PriceLevel<Price, Qty>) {
-        match self.levels.entry(price) {
-            hashbrown::hash_map::Entry::Occupied(o) => (FoundLevelType::Existing, o.into_mut()),
-            hashbrown::hash_map::Entry::Vacant(v) => {
-                debug!("Created a new price level");
-                (FoundLevelType::New, v.insert(PriceLevel::new(price)))
-            }
-        }
-    }
-}
-
-impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord + Num>
-    BookSideOps<Price, Qty> for BookSide<Price, Qty>
-{
-    #[instrument]
-    #[inline]
-    fn add_qty(&mut self, price: Price, qty: Qty) -> (FoundLevelType, PriceLevel<Price, Qty>) {
+        qty: Qty,
+    ) -> (FoundLevelType, PriceLevel<Price, Qty>) {
         debug!("Adding quantity to book_side");
         match self.levels.entry(price) {
             hashbrown::hash_map::Entry::Occupied(o) => {
@@ -107,6 +92,37 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
 
     #[instrument]
     #[inline]
+    fn find_or_create_level_and_set_qty(
+        &mut self,
+        price: Price,
+        qty: Qty,
+    ) -> (FoundLevelType, PriceLevel<Price, Qty>) {
+        debug!("Setting quantity for level");
+        match self.levels.entry(price) {
+            hashbrown::hash_map::Entry::Occupied(o) => {
+                let level = o.into_mut();
+                level.qty = qty;
+                (FoundLevelType::Existing, *level)
+            }
+            hashbrown::hash_map::Entry::Vacant(v) => {
+                debug!("Created a new price level");
+                (FoundLevelType::New, *v.insert(PriceLevel { price, qty }))
+            }
+        }
+    }
+}
+
+impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord + Num>
+    PricePointMutationOps<Price, Qty> for BookSide<Price, Qty>
+{
+    #[instrument]
+    #[inline]
+    fn add_qty(&mut self, price: Price, qty: Qty) -> (FoundLevelType, PriceLevel<Price, Qty>) {
+        self.find_or_create_level_and_add_qty(price, qty)
+    }
+
+    #[instrument]
+    #[inline]
     fn delete_qty(
         &mut self,
         price: Price,
@@ -115,7 +131,7 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
         debug!("Called delete_qty");
         let level = self
             .levels
-                .get_mut(&price)
+            .get_mut(&price)
             .ok_or(PricePointMutationOpsError::from(LevelError::LevelNotFound))?;
         match level.qty.cmp(&qty) {
             std::cmp::Ordering::Equal => {
