@@ -3,28 +3,13 @@ use std::hash::Hash;
 
 use hashbrown::HashMap;
 use num::traits::Num;
-use thiserror::Error;
+
+use crate::{
+    book_side::{DeleteLevelType, FoundLevelType},
+    book_side_ops::{LevelError, PricePointMutationOps, PricePointMutationOpsError},
+};
 
 use super::price_level::PriceLevel;
-
-pub enum FoundLevelType {
-    New,
-    Existing,
-}
-
-#[derive(Error, Debug, PartialEq, Eq)]
-pub enum LevelError {
-    #[error("Level not found")]
-    LevelNotFound,
-}
-
-#[derive(Error, Debug, PartialEq, Eq)]
-pub enum DeleteError {
-    #[error(transparent)]
-    LevelError(#[from] LevelError),
-    #[error("Qty exceeds available")]
-    QtyExceedsAvailable,
-}
 
 #[derive(Debug)]
 pub struct BookSideWithBasicTracking<Price, Qty> {
@@ -115,40 +100,54 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
             self.best_price_qty = self.best_price_qty.map(|qty| qty - deleted_qty);
         }
     }
-
-    #[inline]
-    pub fn add_qty(&mut self, price: Price, qty: Qty) {
-        let (found_level_type, level) = self.find_or_create_level(price);
-        level.add_qty(qty);
-        self.update_best_price_after_add(found_level_type, price, qty);
-    }
-
-    #[inline]
-    pub fn delete_qty(&mut self, price: Price, qty: Qty) -> Result<(), DeleteError> {
-        let level = self
-            .levels
-            .get_mut(&price)
-            .ok_or(LevelError::LevelNotFound)?;
-        match level.qty.cmp(&qty) {
-            std::cmp::Ordering::Less => return Err(DeleteError::QtyExceedsAvailable),
-            std::cmp::Ordering::Equal => {
-                self.levels.remove(&price);
-                self.update_best_price_after_level_delete(price);
-            }
-            std::cmp::Ordering::Greater => {
-                level.delete_qty(qty);
-                self.update_best_price_after_qty_delete(price, qty);
-            }
-        }
-        Ok(())
-    }
-
     #[inline]
     pub fn get_best_price_level(&self) -> Option<&PriceLevel<Price, Qty>> {
         if self.is_bid {
             self.levels.values().max_by_key(|l| l.price)
         } else {
             self.levels.values().min_by_key(|l| l.price)
+        }
+    }
+}
+
+impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord + Num>
+    PricePointMutationOps<Price, Qty> for BookSideWithBasicTracking<Price, Qty>
+{
+    #[inline]
+    fn add_qty(&mut self, price: Price, qty: Qty) -> (FoundLevelType, PriceLevel<Price, Qty>) {
+        let (found_level_type, level) = self.find_or_create_level(price);
+        level.add_qty(qty);
+        self.update_best_price_after_add(found_level_type, price, qty);
+        (found_level_type, PriceLevel { price, qty })
+    }
+
+    #[inline]
+    fn delete_qty(
+        &mut self,
+        price: Price,
+        qty: Qty,
+    ) -> Result<(DeleteLevelType, PriceLevel<Price, Qty>), PricePointMutationOpsError> {
+        let level = self
+            .levels
+            .get_mut(&price)
+            .ok_or(PricePointMutationOpsError::LevelError(
+                LevelError::LevelNotFound,
+            ))?;
+        match level.qty.cmp(&qty) {
+            std::cmp::Ordering::Equal => {
+                self.levels.remove(&price);
+                self.update_best_price_after_level_delete(price);
+                Ok((DeleteLevelType::Deleted, PriceLevel { price, qty }))
+            }
+            std::cmp::Ordering::Greater => {
+                level.delete_qty(qty);
+                self.update_best_price_after_qty_delete(price, qty);
+                Ok((
+                    DeleteLevelType::QuantityDecreased,
+                    PriceLevel { price, qty },
+                ))
+            }
+            std::cmp::Ordering::Less => Err(PricePointMutationOpsError::QtyExceedsAvailable),
         }
     }
 }
