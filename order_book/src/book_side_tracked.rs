@@ -5,7 +5,7 @@ use std::hash::Hash;
 use num::Num;
 
 use crate::book_side::{BookSide, DeleteLevelType, FoundLevelType};
-use crate::book_side_ops::{BookSideOps, BookSideOpsError};
+use crate::book_side_ops::{PricePointMutationOps, PricePointMutationOpsError};
 use crate::price_level::PriceLevel;
 use crate::top_n_levels::NLevels;
 use tracing::{debug, instrument};
@@ -35,7 +35,7 @@ impl<Price: Ord + Hash + Copy + Debug, Qty: Num + Ord + Debug + Copy, const N: u
     }
 
     pub fn get_nth_best_level(&self) -> Option<PriceLevel<Price, Qty>> {
-        self.book_side.get_nth_best_level(N-1)
+        self.book_side.get_nth_best_level(N - 1)
     }
 
     pub fn get_level(&self, price: Price) -> Option<&PriceLevel<Price, Qty>> {
@@ -51,7 +51,7 @@ impl<
         Price: Debug + Eq + Ord + Copy + Hash,
         Qty: Debug + Ord + Clone + Copy + Num,
         const N: usize,
-    > BookSideOps<Price, Qty> for BookSideWithTopNTracking<Price, Qty, N>
+    > PricePointMutationOps<Price, Qty> for BookSideWithTopNTracking<Price, Qty, N>
 {
     #[instrument]
     fn add_qty(&mut self, price: Price, qty: Qty) -> (FoundLevelType, PriceLevel<Price, Qty>) {
@@ -76,6 +76,19 @@ impl<
                 );
             }
             // Adding qty to existing tracked price
+            (FoundLevelType::Existing, _, Some(Ordering::Equal)) => {
+                self.top_n_levels
+                    .levels
+                    .last_mut()
+                    .expect("There is a last element")
+                    .expect("Last price level exists because worst_price not None")
+                    .qty = qty;
+                debug!(
+                    "Updated qty at worst tracked level. Price: {:?}, Qty: {:?}",
+                    added_price, added_qty
+                )
+            }
+            // Adding qty to existing tracked price - note if worst_price is None then existing price must be tracked
             (FoundLevelType::Existing, _, _) => {
                 self.top_n_levels.update_qty(added_price, added_qty);
                 debug!(
@@ -84,8 +97,8 @@ impl<
                 )
             }
             // Insert new top_n bid
-            (FoundLevelType::New, true, _) => {
-                self.top_n_levels.try_insert_sort(PriceLevel {
+            (FoundLevelType::New, true, Some(Ordering::Greater) | None) => {
+                self.top_n_levels.insert_sort(PriceLevel {
                     price: added_price,
                     qty: added_qty,
                 });
@@ -95,7 +108,7 @@ impl<
                 )
             }
             // Insert new top_n ask
-            (FoundLevelType::New, false, _) => {
+            (FoundLevelType::New, false, Some(Ordering::Less) | None) => {
                 self.top_n_levels.insert_sort_reversed(PriceLevel {
                     price: added_price,
                     qty: added_qty,
@@ -104,6 +117,9 @@ impl<
                     "Inserted new top_n ask. Price: {:?}, Qty: {:?}",
                     added_price, added_qty
                 )
+            }
+            (FoundLevelType::New, _, Some(Ordering::Equal)) => {
+                unreachable!("Should not have found a new level at worst price - an existing level")
             }
         }
         (
@@ -120,7 +136,7 @@ impl<
         &mut self,
         price: Price,
         qty: Qty,
-    ) -> Result<(DeleteLevelType, PriceLevel<Price, Qty>), BookSideOpsError> {
+    ) -> Result<(DeleteLevelType, PriceLevel<Price, Qty>), PricePointMutationOpsError> {
         let (delete_type, level) = self.book_side.delete_qty(price, qty)?;
         match (
             delete_type,
@@ -168,6 +184,7 @@ mod tests {
 
     use super::*;
 
+    #[allow(clippy::type_complexity)]
     fn create_books() -> (
         BookSideWithTopNTracking<i32, i32, 1>,
         BookSideWithTopNTracking<i32, i32, 2>,

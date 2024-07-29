@@ -6,7 +6,7 @@ use itertools::Itertools;
 use num::traits::Num;
 use tracing::{debug, instrument};
 
-use crate::book_side_ops::{BookSideOps, BookSideOpsError, DeleteError, LevelError};
+use crate::book_side_ops::{LevelError, PricePointMutationOps, PricePointMutationOpsError};
 
 use super::price_level::PriceLevel;
 
@@ -53,9 +53,9 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
 
     #[inline]
     pub fn get_nth_best_level(&self, n: usize) -> Option<PriceLevel<Price, Qty>> {
-        // TODO-optimisation: Consider replacing self.levels HashMap with a BTreeMap.
-        // This function will be costly when called too often & when there are many
-        // levels.
+        // Have considered replacing self.levels HashMap with a BTreeMap, but the slowdown
+        // for operations other than getting nth best level does not seem worth it during
+        // tracking unless order book has a lot of levels (~1000+)
         let mut sorted = self
             .levels
             .iter()
@@ -71,30 +71,55 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
 
     #[instrument]
     #[inline]
-    pub fn find_or_create_level(
+    fn find_or_create_level_and_add_qty(
         &mut self,
         price: Price,
-    ) -> (FoundLevelType, &mut PriceLevel<Price, Qty>) {
+        qty: Qty,
+    ) -> (FoundLevelType, PriceLevel<Price, Qty>) {
+        debug!("Adding quantity to book_side");
         match self.levels.entry(price) {
-            hashbrown::hash_map::Entry::Occupied(o) => (FoundLevelType::Existing, o.into_mut()),
+            hashbrown::hash_map::Entry::Occupied(o) => {
+                let level = o.into_mut();
+                level.add_qty(qty);
+
+                (FoundLevelType::Existing, *level)
+            }
             hashbrown::hash_map::Entry::Vacant(v) => {
                 debug!("Created a new price level");
-                (FoundLevelType::New, v.insert(PriceLevel::new(price)))
+                (FoundLevelType::New, *v.insert(PriceLevel { price, qty }))
+            }
+        }
+    }
+
+    #[instrument]
+    #[inline]
+    fn find_or_create_level_and_set_qty(
+        &mut self,
+        price: Price,
+        qty: Qty,
+    ) -> (FoundLevelType, PriceLevel<Price, Qty>) {
+        debug!("Setting quantity for level");
+        match self.levels.entry(price) {
+            hashbrown::hash_map::Entry::Occupied(o) => {
+                let level = o.into_mut();
+                level.qty = qty;
+                (FoundLevelType::Existing, *level)
+            }
+            hashbrown::hash_map::Entry::Vacant(v) => {
+                debug!("Created a new price level");
+                (FoundLevelType::New, *v.insert(PriceLevel { price, qty }))
             }
         }
     }
 }
 
 impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord + Num>
-    BookSideOps<Price, Qty> for BookSide<Price, Qty>
+    PricePointMutationOps<Price, Qty> for BookSide<Price, Qty>
 {
     #[instrument]
     #[inline]
     fn add_qty(&mut self, price: Price, qty: Qty) -> (FoundLevelType, PriceLevel<Price, Qty>) {
-        debug!("Adding quantity to book_side");
-        let (found_level_type, level) = self.find_or_create_level(price);
-        level.add_qty(qty);
-        (found_level_type, *level)
+        self.find_or_create_level_and_add_qty(price, qty)
     }
 
     #[instrument]
@@ -103,16 +128,13 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
         &mut self,
         price: Price,
         qty: Qty,
-    ) -> Result<(DeleteLevelType, PriceLevel<Price, Qty>), BookSideOpsError> {
+    ) -> Result<(DeleteLevelType, PriceLevel<Price, Qty>), PricePointMutationOpsError> {
         debug!("Called delete_qty");
-        let level =
-            self.levels
-                .get_mut(&price)
-                .ok_or(BookSideOpsError::from(DeleteError::from(
-                    LevelError::LevelNotFound,
-                )))?;
+        let level = self
+            .levels
+            .get_mut(&price)
+            .ok_or(PricePointMutationOpsError::from(LevelError::LevelNotFound))?;
         match level.qty.cmp(&qty) {
-            std::cmp::Ordering::Less => Err(DeleteError::QtyExceedsAvailable.into()),
             std::cmp::Ordering::Equal => {
                 let deleted_level = self.levels.remove(&price).unwrap();
                 Ok((DeleteLevelType::Deleted, deleted_level))
@@ -121,6 +143,7 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
                 level.delete_qty(qty);
                 Ok((DeleteLevelType::QuantityDecreased, *level))
             }
+            std::cmp::Ordering::Less => Err(PricePointMutationOpsError::QtyExceedsAvailable),
         }
     }
 }
@@ -128,7 +151,7 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     fn create_book_side_with_orders(is_bid: bool) -> BookSide<u32, u32> {
         let mut book_side = BookSide::new(is_bid);
         book_side.add_qty(1, 100);
@@ -277,7 +300,6 @@ mod tests {
             Some(PriceLevel { price: 2, qty: 100 })
         );
         assert_eq!(book_side.get_nth_best_level(1), None);
-
     }
 
     #[test]

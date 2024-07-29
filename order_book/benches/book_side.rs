@@ -1,16 +1,16 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+#![allow(clippy::unit_arg)]
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use itertools::izip;
 
 use order_book::book_side::BookSide;
-use order_book::book_side_ops::BookSideOps;
+use order_book::book_side_ops::PricePointMutationOps;
 
 pub fn book_side_simple(c: &mut Criterion) {
-    let mut group = c.benchmark_group("untracked_book_side");
     let mut book = black_box(BookSide::new(true));
     let prices = [1i64, 2, 3, 1, 2, 3, 3, 1, 2, 3, 1, 2];
     let quantities = [1i64, 2, 3, 1, 2, 3, -3, -1, -2, -3, -1, -2];
 
-    group.bench_function("simple", |b| {
+    c.bench_function("untracked_simple", |b| {
         b.iter(|| {
             black_box({
                 for (price, qty) in izip!(prices.into_iter(), quantities.into_iter()) {
@@ -46,22 +46,19 @@ pub fn book_side_performance_by_nr_levels(c: &mut Criterion) {
                 let (best_px, best_qty) = (prices[0], quantities[0]);
                 (best_px, best_qty, best_px - 1, best_qty - 1)
             };
-            group.bench_function(
-                format!("{}_{}_levels", nr_levels, side_name).as_str(),
-                |b| {
-                    b.iter(|| {
-                        black_box({
-                            // Repeatedly modify best px to next px and back
-                            for _ in 0..500 {
-                                book.delete_qty(best_px, best_qty).unwrap();
-                                book.add_qty(next_px, next_qty);
-                                book.delete_qty(next_px, next_qty).unwrap();
-                                book.add_qty(best_px, best_qty);
-                            }
-                        })
+            group.bench_function(BenchmarkId::new(side_name, nr_levels), |b| {
+                b.iter(|| {
+                    black_box({
+                        // Repeatedly modify best px to next px and back
+                        for _ in 0..500 {
+                            book.delete_qty(best_px, best_qty).unwrap();
+                            book.add_qty(next_px, next_qty);
+                            book.delete_qty(next_px, next_qty).unwrap();
+                            book.add_qty(best_px, best_qty);
+                        }
                     })
-                },
-            );
+                })
+            });
         }
     }
 }

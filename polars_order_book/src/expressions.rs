@@ -4,7 +4,11 @@ use crate::basic_tracking::{
     calculate_bbo_from_simple_mutations_basic_tracking, calculate_bbo_with_modifies_basic_tracking,
 };
 use itertools::izip;
-use order_book::{book_side_ops::BookSideOps, order_book_tracked::OrderBookWithTopNTracking};
+use order_book::{
+    book_side_ops::PricePointMutationOps,
+    order_book::{BidAskBook, PricePointMutationBookOps},
+    order_book_tracked::OrderBookWithTopNTracking,
+};
 use polars::datatypes::BooleanType;
 use polars::prelude::*;
 use pyo3_polars::derive::polars_expr;
@@ -338,7 +342,7 @@ mod tests {
         .unwrap();
 
         for level in 1..=2 {
-            let bbo_struct = _pl_calculate_bbo(&df.get_columns(), level).unwrap();
+            let bbo_struct = _pl_calculate_bbo(df.get_columns(), level).unwrap();
             let df_with_bbo = df
                 .clone()
                 .with_column(bbo_struct)
@@ -388,7 +392,7 @@ mod tests {
             .unwrap();
 
         for level in 1..=2 {
-            let bbo_struct = _pl_calculate_bbo(&df.get_columns(), level).unwrap();
+            let bbo_struct = _pl_calculate_bbo(df.get_columns(), level).unwrap();
             let df_with_bbo = df
                 .clone()
                 .with_column(bbo_struct)
@@ -437,7 +441,7 @@ mod tests {
         }.unwrap();
 
         for level in 1..=2 {
-            let bbo_struct = _pl_calculate_bbo(&df.get_columns(), level).unwrap();
+            let bbo_struct = _pl_calculate_bbo(df.get_columns(), level).unwrap();
             let df_with_bbo = df
                 .clone()
                 .with_column(bbo_struct)

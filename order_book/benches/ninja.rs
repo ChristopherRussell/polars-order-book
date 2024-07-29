@@ -1,10 +1,11 @@
+#![allow(clippy::unit_arg)]
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use itertools::izip;
 use polars::io::SerReader;
 use polars::prelude::CsvReader;
 use std::path::PathBuf;
 
-use order_book::order_book::OrderBook;
+use order_book::order_book::{OrderBook, PricePointMutationBookOps};
 use order_book::order_book_tracked::OrderBookWithTopNTracking;
 use order_book::order_book_tracked_basic::OrderBookWithBasicTracking;
 

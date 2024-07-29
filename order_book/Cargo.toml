@@ -18,7 +18,7 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 
 [dev-dependencies]
-criterion = { version = "0.5.1", features = ["html_reports"] }
+criterion = { version = "0.5.1", features = ["html_reports", "real_blackbox"] }
 polars = { version = "*", features = [
     "polars-io",
     "csv",
