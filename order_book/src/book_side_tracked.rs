@@ -79,11 +79,10 @@ impl<
             (FoundLevelType::Existing, _, Some(Ordering::Equal)) => {
                 self.top_n_levels
                     .levels
-                    .iter_mut()
-                    .last()
+                    .last_mut()
                     .expect("There is a last element")
                     .expect("Last price level exists because worst_price not None")
-                    .qty = added_qty;
+                    .qty = qty;
                 debug!(
                     "Updated qty at worst tracked level. Price: {:?}, Qty: {:?}",
                     added_price, added_qty

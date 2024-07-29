@@ -81,6 +81,7 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
             hashbrown::hash_map::Entry::Occupied(o) => {
                 let level = o.into_mut();
                 level.add_qty(qty);
+
                 (FoundLevelType::Existing, *level)
             }
             hashbrown::hash_map::Entry::Vacant(v) => {
