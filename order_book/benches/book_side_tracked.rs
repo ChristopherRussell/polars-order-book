@@ -2,7 +2,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use itertools::izip;
 
-use order_book::book_side_ops::BookSideOps;
+use order_book::book_side_ops::PricePointMutationOps;
 use order_book::book_side_tracked::BookSideWithTopNTracking;
 use order_book::book_side_tracked_basic::BookSideWithBasicTracking;
 

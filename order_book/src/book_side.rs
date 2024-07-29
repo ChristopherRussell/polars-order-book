@@ -6,7 +6,7 @@ use itertools::Itertools;
 use num::traits::Num;
 use tracing::{debug, instrument};
 
-use crate::book_side_ops::{BookSideOps, BookSideOpsError, DeleteError, LevelError};
+use crate::book_side_ops::{LevelError, PricePointMutationOps, PricePointMutationOpsError};
 
 use super::price_level::PriceLevel;
 
@@ -111,16 +111,13 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
         &mut self,
         price: Price,
         qty: Qty,
-    ) -> Result<(DeleteLevelType, PriceLevel<Price, Qty>), BookSideOpsError> {
+    ) -> Result<(DeleteLevelType, PriceLevel<Price, Qty>), PricePointMutationOpsError> {
         debug!("Called delete_qty");
-        let level =
-            self.levels
+        let level = self
+            .levels
                 .get_mut(&price)
-                .ok_or(BookSideOpsError::from(DeleteError::from(
-                    LevelError::LevelNotFound,
-                )))?;
+            .ok_or(PricePointMutationOpsError::from(LevelError::LevelNotFound))?;
         match level.qty.cmp(&qty) {
-            std::cmp::Ordering::Less => Err(DeleteError::QtyExceedsAvailable.into()),
             std::cmp::Ordering::Equal => {
                 let deleted_level = self.levels.remove(&price).unwrap();
                 Ok((DeleteLevelType::Deleted, deleted_level))
@@ -129,6 +126,7 @@ impl<Price: Debug + Copy + Eq + Ord + Hash, Qty: Debug + Copy + PartialEq + Ord 
                 level.delete_qty(qty);
                 Ok((DeleteLevelType::QuantityDecreased, *level))
             }
+            std::cmp::Ordering::Less => Err(PricePointMutationOpsError::QtyExceedsAvailable),
         }
     }
 }

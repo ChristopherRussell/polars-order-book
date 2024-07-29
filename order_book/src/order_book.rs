@@ -4,7 +4,7 @@ use std::fmt::{Debug, Display};
 use std::hash::Hash;
 
 use crate::book_side::BookSide;
-use crate::book_side_ops::BookSideOps;
+use crate::book_side_ops::PricePointMutationOps;
 
 pub struct OrderBook<Price, Qty> {
     bids: BookSide<Price, Qty>,

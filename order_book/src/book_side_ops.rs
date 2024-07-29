@@ -10,21 +10,14 @@ pub enum LevelError {
 }
 
 #[derive(Error, Debug, PartialEq, Eq)]
-pub enum DeleteError {
+pub enum PricePointMutationOpsError {
     #[error(transparent)]
     LevelError(#[from] LevelError),
     #[error("Qty exceeds available")]
     QtyExceedsAvailable,
 }
 
-#[derive(Error, Debug, PartialEq, Eq)]
-pub enum BookSideOpsError {
-    #[error(transparent)]
-    DeleteError(#[from] DeleteError),
-    // #[error("Qty exceeds available")]
-    // QtyExceedsAvailable,
-}
-pub trait BookSideOps<Price, Qty> {
+pub trait PricePointMutationOps<Price, Qty> {
     fn add_qty(&mut self, price: Price, qty: Qty) -> (FoundLevelType, PriceLevel<Price, Qty>);
     fn modify_qty(
         &mut self,
@@ -32,7 +25,7 @@ pub trait BookSideOps<Price, Qty> {
         qty: Qty,
         prev_price: Price,
         prev_qty: Qty,
-    ) -> Result<(FoundLevelType, PriceLevel<Price, Qty>), BookSideOpsError> {
+    ) -> Result<(FoundLevelType, PriceLevel<Price, Qty>), PricePointMutationOpsError> {
         self.delete_qty(prev_price, prev_qty)?;
         Ok(self.add_qty(price, qty))
     }
@@ -40,5 +33,9 @@ pub trait BookSideOps<Price, Qty> {
         &mut self,
         price: Price,
         qty: Qty,
-    ) -> Result<(DeleteLevelType, PriceLevel<Price, Qty>), BookSideOpsError>;
+    ) -> Result<(DeleteLevelType, PriceLevel<Price, Qty>), PricePointMutationOpsError>;
+}
+
+pub trait PricePointSummaryOps<Price, Qty> {
+    fn set_level(&mut self, price: Price, qty: Qty);
 }

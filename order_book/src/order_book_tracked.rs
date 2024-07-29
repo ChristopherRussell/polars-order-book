@@ -5,7 +5,7 @@ use anyhow::Context;
 use num::traits::Num;
 use tracing::{debug, instrument};
 
-use crate::book_side_ops::BookSideOps;
+use crate::book_side_ops::PricePointMutationOps;
 use crate::book_side_tracked::BookSideWithTopNTracking;
 
 pub struct OrderBookWithTopNTracking<Price, Qty, const N: usize> {

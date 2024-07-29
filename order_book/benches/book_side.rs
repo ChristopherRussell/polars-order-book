@@ -3,7 +3,7 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use itertools::izip;
 
 use order_book::book_side::BookSide;
-use order_book::book_side_ops::BookSideOps;
+use order_book::book_side_ops::PricePointMutationOps;
 
 pub fn book_side_simple(c: &mut Criterion) {
     let mut book = black_box(BookSide::new(true));

@@ -5,7 +5,7 @@ use std::hash::Hash;
 use num::Num;
 
 use crate::book_side::{BookSide, DeleteLevelType, FoundLevelType};
-use crate::book_side_ops::{BookSideOps, BookSideOpsError};
+use crate::book_side_ops::{PricePointMutationOps, PricePointMutationOpsError};
 use crate::price_level::PriceLevel;
 use crate::top_n_levels::NLevels;
 use tracing::{debug, instrument};
@@ -51,7 +51,7 @@ impl<
         Price: Debug + Eq + Ord + Copy + Hash,
         Qty: Debug + Ord + Clone + Copy + Num,
         const N: usize,
-    > BookSideOps<Price, Qty> for BookSideWithTopNTracking<Price, Qty, N>
+    > PricePointMutationOps<Price, Qty> for BookSideWithTopNTracking<Price, Qty, N>
 {
     #[instrument]
     fn add_qty(&mut self, price: Price, qty: Qty) -> (FoundLevelType, PriceLevel<Price, Qty>) {
@@ -137,7 +137,7 @@ impl<
         &mut self,
         price: Price,
         qty: Qty,
-    ) -> Result<(DeleteLevelType, PriceLevel<Price, Qty>), BookSideOpsError> {
+    ) -> Result<(DeleteLevelType, PriceLevel<Price, Qty>), PricePointMutationOpsError> {
         let (delete_type, level) = self.book_side.delete_qty(price, qty)?;
         match (
             delete_type,

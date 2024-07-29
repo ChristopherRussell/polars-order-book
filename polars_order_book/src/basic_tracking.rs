@@ -1,12 +1,11 @@
 #![allow(clippy::unused_unit)]
-
 use itertools::izip;
 use polars::datatypes::BooleanType;
 use polars::prelude::*;
 use pyo3_polars::derive::polars_expr;
 
 use order_book::{
-    book_side_tracked_basic::BookSideWithBasicTracking,
+    book_side_ops::PricePointMutationOps, book_side_tracked_basic::BookSideWithBasicTracking,
     order_book_tracked_basic::OrderBookWithBasicTracking,
 };
 
@@ -189,11 +188,11 @@ fn apply_simple_mutation(
     qty: i64,
 ) {
     if qty > 0 {
-        book.book_side(is_bid).add_qty(price, qty)
+        book.book_side(is_bid).add_qty(price, qty);
     } else {
         book.book_side(is_bid)
             .delete_qty(price, qty.abs())
-            .expect("Invalid delete qty operation - likely deleted more than available qty")
+            .expect("Invalid delete qty operation - likely deleted more than available qty");
     }
 }
 
