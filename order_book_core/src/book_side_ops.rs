@@ -1,7 +1,6 @@
-use thiserror::Error;
-
 use crate::book_side::{DeleteLevelType, FoundLevelType};
-use crate::price_level::PriceLevel;
+use crate::price_level::{self, QuantityLike};
+use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum LevelError {
@@ -17,25 +16,25 @@ pub enum PricePointMutationOpsError {
     QtyExceedsAvailable,
 }
 
-pub trait PricePointMutationOps<Price, Qty> {
-    fn add_qty(&mut self, price: Price, qty: Qty) -> (FoundLevelType, PriceLevel<Price, Qty>);
+pub trait PricePointMutationOps<Px: price_level::Price, Qty: QuantityLike> {
+    fn add_qty(&mut self, price: Px, qty: Qty) -> FoundLevelType<Qty>;
     fn modify_qty(
         &mut self,
-        price: Price,
+        price: Px,
         qty: Qty,
-        prev_price: Price,
+        prev_price: Px,
         prev_qty: Qty,
-    ) -> Result<(FoundLevelType, PriceLevel<Price, Qty>), PricePointMutationOpsError> {
+    ) -> Result<FoundLevelType<Qty>, PricePointMutationOpsError> {
         self.delete_qty(prev_price, prev_qty)?;
         Ok(self.add_qty(price, qty))
     }
     fn delete_qty(
         &mut self,
-        price: Price,
+        price: Px,
         qty: Qty,
-    ) -> Result<(DeleteLevelType, PriceLevel<Price, Qty>), PricePointMutationOpsError>;
+    ) -> Result<DeleteLevelType<Qty>, PricePointMutationOpsError>;
 }
 
-pub trait PricePointSummaryOps<Price, Qty> {
-    fn set_level(&mut self, price: Price, qty: Qty);
+pub trait PricePointSummaryOps<Px, Qty> {
+    fn set_level(&mut self, price: Px, qty: Qty);
 }

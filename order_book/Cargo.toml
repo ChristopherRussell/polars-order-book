@@ -7,7 +7,7 @@ edition = "2021"
 name = "order_book"
 
 [dependencies]
-hashbrown = "0.14.3"
+hashbrown = "0.14"
 log = "0.4.14"
 env_logger = "0.11.3"
 thiserror = "1.0.29"
@@ -16,6 +16,8 @@ anyhow = "1.0.44"
 itertools = "0.13.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"
+order-book-derive = { path = "../order_book_derive" }
+order-book-core = { path = "../order_book_core" }
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports", "real_blackbox"] }
@@ -40,3 +42,9 @@ harness = false
 [[bench]]
 name = "ninja"
 harness = false
+
+[[test]]
+name = "book_side_tests"
+
+[[test]]
+name = "book_side_derive"

@@ -1,7 +1,7 @@
 mod basic_tracking;
+mod errors;
 mod expressions;
 mod utils;
-
 #[cfg(target_os = "linux")]
 use jemallocator::Jemalloc;
 

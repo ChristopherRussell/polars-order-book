@@ -1,0 +1,12 @@
+[package]
+name = "order-book-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hashbrown = "0.14"
+itertools = "0.13.0"
+tracing = "0.1.40"
+num = "0.4.3"
+thiserror = "1.0.63"
+anyhow = "1.0.86"

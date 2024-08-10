@@ -2,10 +2,11 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use itertools::izip;
 
-use order_book::order_book::{OrderBook, PricePointMutationBookOps};
+use order_book::order_book_simple::SimpleOrderBook;
+use order_book_core::order_book::PricePointMutationBookOps;
 
 pub fn order_book_simple(c: &mut Criterion) {
-    let mut book = black_box(OrderBook::new());
+    let mut book = black_box(SimpleOrderBook::new());
     let prices = [1i64, 2, 3, 6, 5, 4, 3, 1, 2, 5, 4, 6];
     let quantities = [1i64, 2, 3, 6, 5, 4, -3, -1, -2, -5, -4, -6];
     let is_bid = [
@@ -22,7 +23,7 @@ pub fn order_book_simple(c: &mut Criterion) {
                     if qty > 0 {
                         book.add_qty(is_bid, price, qty);
                     } else {
-                        book.delete_qty(is_bid, price, qty.abs());
+                        book.delete_qty(is_bid, price, qty.abs()).unwrap();
                     }
                 }
             })

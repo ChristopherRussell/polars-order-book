@@ -1,14 +1,16 @@
 #![allow(clippy::unused_unit)]
 
-use crate::basic_tracking::{
-    calculate_bbo_from_simple_mutations_basic_tracking, calculate_bbo_with_modifies_basic_tracking,
+use crate::{
+    basic_tracking::{
+        calculate_bbo_from_simple_mutations_basic_tracking,
+        calculate_bbo_with_modifies_basic_tracking,
+    },
+    errors::PolarsOrderBookError,
 };
 use itertools::izip;
-use order_book::{
-    book_side_ops::PricePointMutationOps,
-    order_book::{BidAskBook, PricePointMutationBookOps},
-    order_book_tracked::OrderBookWithTopNTracking,
-};
+use order_book::order_book_tracked::OrderBookWithTopNTracking;
+use order_book_core::{order_book::PricePointMutationBookOps, price_level::Price};
+
 use polars::datatypes::BooleanType;
 use polars::prelude::*;
 use pyo3_polars::derive::polars_expr;
@@ -208,17 +210,17 @@ impl<const N: usize> BboBuilder<N> {
             book.bids.top_n().iter(),
             &mut self.best_ask_prices,
             &mut self.best_ask_qtys,
-            book.offers.top_n().iter(),
+            book.asks.top_n().iter(),
         ) {
             if let Some(level) = bid_level {
-                bid_px_builder.append_value(level.price);
+                bid_px_builder.append_value(level.price.value());
                 bid_qty_builder.append_value(level.qty);
             } else {
                 bid_px_builder.append_null();
                 bid_qty_builder.append_null();
             }
             if let Some(level) = ask_level {
-                ask_px_builder.append_value(level.price);
+                ask_px_builder.append_value(level.price.value());
                 ask_qty_builder.append_value(level.qty);
             } else {
                 ask_px_builder.append_null();
@@ -246,7 +248,7 @@ fn calculate_bbo_from_simple_mutations<const N: usize>(
         qty_array.into_iter(),
     ) {
         if let (Some(is_bid), Some(price), Some(qty)) = tuple {
-            apply_simple_mutation(&mut book, is_bid, price, qty);
+            apply_simple_mutation(&mut book, is_bid, price, qty)?;
         } else {
             panic!("Invalid input tuple: {:?}", tuple);
         }
@@ -279,13 +281,13 @@ fn calculate_bbo_with_modifies<const N: usize>(
     ) {
         match tuple {
             (Some(is_bid), Some(price), Some(qty), None, None) => {
-                apply_simple_mutation(&mut book, is_bid, price, qty);
+                apply_simple_mutation(&mut book, is_bid, price, qty)?;
             }
-            (Some(is_bid), Some(price), Some(qty), Some(prev_price), Some(prev_qty)) => {
-                book.modify_qty(is_bid, prev_price, prev_qty, price, qty)
-            }
+            (Some(is_bid), Some(price), Some(qty), Some(prev_price), Some(prev_qty)) => book
+                .modify_qty(is_bid, prev_price, prev_qty, price, qty)
+                .map_err(PolarsOrderBookError::PricePointMutationOpsError)?,
             (Some(is_bid), Some(price), Some(qty), None, Some(prev_qty)) => {
-                apply_simple_mutation(&mut book, is_bid, price, qty - prev_qty);
+                apply_simple_mutation(&mut book, is_bid, price, qty - prev_qty)?;
             }
             _ => panic!("Invalid input tuple: {:?}", tuple),
         }
@@ -301,16 +303,15 @@ fn apply_simple_mutation<const N: usize>(
     is_bid: bool,
     price: i64,
     qty: i64,
-) {
+) -> Result<(), PolarsOrderBookError> {
     if qty > 0 {
         debug!("Adding quantity");
-        book.book_side(is_bid).add_qty(price, qty);
+        book.add_qty(is_bid, price, qty);
     } else {
         debug!("Deleting quantity");
-        book.book_side(is_bid)
-            .delete_qty(price, qty.abs())
-            .expect("Invalid delete qty operation - likely deleted more than available qty");
+        book.delete_qty(is_bid, price, qty.abs())?;
     }
+    Ok(())
 }
 
 #[cfg(test)]

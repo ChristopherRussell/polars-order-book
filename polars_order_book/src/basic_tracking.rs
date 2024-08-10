@@ -1,15 +1,17 @@
 #![allow(clippy::unused_unit)]
+use crate::errors::PolarsOrderBookError;
 use itertools::izip;
+use order_book::{
+    book_side_tracked_basic::BookSideWithBasicTracking,
+    order_book_tracked_basic::OrderBookWithBasicTracking,
+};
+use order_book_core::{
+    order_book::{BidAskBook, PricePointMutationBookOps},
+    price_level::Price,
+};
 use polars::datatypes::BooleanType;
 use polars::prelude::*;
 use pyo3_polars::derive::polars_expr;
-
-use order_book::{
-    book_side_ops::PricePointMutationOps,
-    book_side_tracked_basic::BookSideWithBasicTracking,
-    order_book::{BidAskBook, PricePointMutationBookOps},
-    order_book_tracked_basic::OrderBookWithBasicTracking,
-};
 
 fn bbo_struct(input_fields: &[Field]) -> PolarsResult<Field> {
     let price_field = &input_fields[0];
@@ -92,16 +94,16 @@ pub fn calculate_bbo_from_simple_mutations_basic_tracking(
         qty_array.into_iter()
     ) {
         if let (Some(is_bid), Some(price), Some(qty)) = tuple {
-            apply_simple_mutation(&mut book, is_bid, price, qty);
+            apply_simple_mutation(&mut book, is_bid, price, qty)?;
 
             update_builders_one_side(
-                book.book_side(true),
+                book.bids(),
                 &mut bid_price_1_builder,
                 &mut bid_qty_1_builder,
             );
 
             update_builders_one_side(
-                book.book_side(false),
+                book.asks(),
                 &mut ask_price_1_builder,
                 &mut ask_qty_1_builder,
             );
@@ -122,7 +124,7 @@ pub fn calculate_bbo_from_simple_mutations_basic_tracking(
 
 /// Calculate the best bid and best ask prices and quantities
 /// using price-point mutations which may include modifies, i.e.
-/// a delete and an add operation in a single row.
+/// delete and add operation in a single row.
 pub fn calculate_bbo_with_modifies_basic_tracking(
     price_array: &ChunkedArray<Int64Type>,
     qty_array: &ChunkedArray<Int64Type>,
@@ -150,24 +152,25 @@ pub fn calculate_bbo_with_modifies_basic_tracking(
     ) {
         match tuple {
             (Some(is_bid), Some(price), Some(qty), None, None) => {
-                apply_simple_mutation(&mut book, is_bid, price, qty);
+                apply_simple_mutation(&mut book, is_bid, price, qty)?;
             }
             (Some(is_bid), Some(price), Some(qty), Some(prev_price), Some(prev_qty)) => {
                 book.modify_qty(is_bid, prev_price, prev_qty, price, qty)
+                    .map_err(PolarsOrderBookError::from)?;
             }
             (Some(is_bid), Some(price), Some(qty), None, Some(prev_qty)) => {
-                apply_simple_mutation(&mut book, is_bid, price, qty - prev_qty);
+                apply_simple_mutation(&mut book, is_bid, price, qty - prev_qty)?;
             }
             _ => panic!("Invalid input tuple: {:?}", tuple),
         }
         update_builders_one_side(
-            book.book_side(true),
+            book.bids(),
             &mut bid_price_1_builder,
             &mut bid_qty_1_builder,
         );
 
         update_builders_one_side(
-            book.book_side(false),
+            book.asks(),
             &mut ask_price_1_builder,
             &mut ask_qty_1_builder,
         );
@@ -188,22 +191,22 @@ fn apply_simple_mutation(
     is_bid: bool,
     price: i64,
     qty: i64,
-) {
+) -> Result<(), PolarsOrderBookError> {
     if qty > 0 {
-        book.book_side(is_bid).add_qty(price, qty);
+        book.add_qty(is_bid, price, qty);
     } else {
-        book.book_side(is_bid)
-            .delete_qty(price, qty.abs())
-            .expect("Invalid delete qty operation - likely deleted more than available qty");
+        book.delete_qty(is_bid, price, qty.abs())
+            .map_err(PolarsOrderBookError::from)?;
     }
+    Ok(())
 }
 
-fn update_builders_one_side(
-    book_side: &BookSideWithBasicTracking<i64, i64>,
+fn update_builders_one_side<Px: Price<PriceType = i64> + From<i64>>(
+    book_side: &BookSideWithBasicTracking<Px, i64>,
     price_builder: &mut PrimitiveChunkedBuilder<Int64Type>,
     qty_builder: &mut PrimitiveChunkedBuilder<Int64Type>,
 ) {
-    price_builder.append_option(book_side.best_price);
+    price_builder.append_option(book_side.best_price.map(|px| px.value()));
     qty_builder.append_option(book_side.best_price_qty);
 }
 
