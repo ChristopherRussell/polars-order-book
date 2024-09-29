@@ -1,7 +1,7 @@
 use hashbrown::HashMap;
 use order_book_core::book_side::{BookSide, DeleteLevelType, FoundLevelType};
 use order_book_core::book_side_ops::{
-    LevelError, PricePointMutationOps, PricePointMutationOpsError,
+    LevelError, PricePointMutationOps, PricePointMutationOpsError, PricePointSummaryOps,
 };
 use order_book_core::price_level::{self, QuantityLike};
 use std::fmt::Debug;
@@ -115,6 +115,34 @@ impl<Px: price_level::Price, Qty: QuantityLike> PricePointMutationOps<Px, Qty>
                 Ok(DeleteLevelType::QuantityDecreased(qty))
             }
             std::cmp::Ordering::Greater => Err(PricePointMutationOpsError::QtyExceedsAvailable),
+        }
+    }
+}
+
+impl<Px: price_level::Price, Qty: QuantityLike> PricePointSummaryOps<Px, Qty>
+    for BookSideWithBasicTracking<Px, Qty>
+{
+    fn set_level(&mut self, price: Px, new_qty: Qty) {
+        match self.levels.entry(price) {
+            hashbrown::hash_map::Entry::Occupied(mut entry) => {
+                if new_qty.is_zero() {
+                    entry.remove();
+                    self.update_best_price_after_level_delete(price);
+                } else {
+                    entry.insert(new_qty);
+                    // This level is occupied, so there is at least one price and best_price is Some(_).
+                    if self.best_price.unwrap() == price {
+                        self.best_price_qty = Some(new_qty);
+                    }
+                }
+            }
+            hashbrown::hash_map::Entry::Vacant(entry) => {
+                // TODO: could return an error if zero quantity on a non-existing level.
+                if !new_qty.is_zero() {
+                    entry.insert(new_qty);
+                    self.update_best_price_after_add(price, new_qty);
+                }
+            }
         }
     }
 }
@@ -328,5 +356,62 @@ mod tests {
         book_side.add_qty(BidPrice(100), 15);
         assert_eq!(book_side.best_price, Some(BidPrice(100)));
         assert_eq!(book_side.best_price_qty, Some(15));
+    }
+
+    #[test]
+    fn test_set_level() {
+        // Test for bid side
+        let mut bid_side = BookSideWithBasicTracking::<BidPrice<i64>, i64>::new();
+
+        // Set a new level
+        bid_side.set_level(BidPrice(100), 10);
+        assert_eq!(bid_side.levels.get(&BidPrice(100)), Some(&10));
+        assert_eq!(bid_side.best_price, Some(BidPrice(100)));
+        assert_eq!(bid_side.best_price_qty, Some(10));
+
+        // Update existing level
+        bid_side.set_level(BidPrice(100), 20);
+        assert_eq!(bid_side.levels.get(&BidPrice(100)), Some(&20));
+        assert_eq!(bid_side.best_price, Some(BidPrice(100)));
+        assert_eq!(bid_side.best_price_qty, Some(20));
+
+        // Add better price
+        bid_side.set_level(BidPrice(110), 5);
+        assert_eq!(bid_side.levels.get(&BidPrice(110)), Some(&5));
+        assert_eq!(bid_side.best_price, Some(BidPrice(110)));
+        assert_eq!(bid_side.best_price_qty, Some(5));
+
+        // Remove best price
+        bid_side.set_level(BidPrice(110), 0);
+        assert_eq!(bid_side.levels.get(&BidPrice(110)), None);
+        assert_eq!(bid_side.best_price, Some(BidPrice(100)));
+        assert_eq!(bid_side.best_price_qty, Some(20));
+
+        // Test for ask side
+        let mut ask_side = BookSideWithBasicTracking::<AskPrice<i64>, i64>::new();
+
+        // Set a new level
+        ask_side.set_level(AskPrice(100), 10);
+        assert_eq!(ask_side.levels.get(&AskPrice(100)), Some(&10));
+        assert_eq!(ask_side.best_price, Some(AskPrice(100)));
+        assert_eq!(ask_side.best_price_qty, Some(10));
+
+        // Update existing level
+        ask_side.set_level(AskPrice(100), 20);
+        assert_eq!(ask_side.levels.get(&AskPrice(100)), Some(&20));
+        assert_eq!(ask_side.best_price, Some(AskPrice(100)));
+        assert_eq!(ask_side.best_price_qty, Some(20));
+
+        // Add better price
+        ask_side.set_level(AskPrice(90), 5);
+        assert_eq!(ask_side.levels.get(&AskPrice(90)), Some(&5));
+        assert_eq!(ask_side.best_price, Some(AskPrice(90)));
+        assert_eq!(ask_side.best_price_qty, Some(5));
+
+        // Remove best price
+        ask_side.set_level(AskPrice(90), 0);
+        assert_eq!(ask_side.levels.get(&AskPrice(90)), None);
+        assert_eq!(ask_side.best_price, Some(AskPrice(100)));
+        assert_eq!(ask_side.best_price_qty, Some(20));
     }
 }

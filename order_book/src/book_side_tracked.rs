@@ -4,7 +4,9 @@ use std::fmt::Debug;
 use crate::top_n_levels::NLevels;
 use hashbrown::HashMap;
 use order_book_core::book_side::{BookSide, DeleteLevelType, FoundLevelType};
-use order_book_core::book_side_ops::{PricePointMutationOps, PricePointMutationOpsError};
+use order_book_core::book_side_ops::{
+    PricePointMutationOps, PricePointMutationOpsError, PricePointSummaryOps,
+};
 use order_book_core::price_level::{self, PriceLevel, QuantityLike};
 use order_book_derive::BookSide;
 use tracing::{debug, instrument};
@@ -167,6 +169,77 @@ impl<Px: price_level::Price, Qty: QuantityLike, const N: usize>
         self.top_n_levels.best_price_qty()
     }
 }
+impl<Px: price_level::Price, Qty: QuantityLike, const N: usize> PricePointSummaryOps<Px, Qty>
+    for BookSideWithTopNTracking<Px, Qty, N>
+{
+    fn set_level(&mut self, price: Px, new_qty: Qty) {
+        if new_qty.is_zero() {
+            self.levels.remove(&price);
+            match self.top_n_levels.worst_price.map(|px| price.cmp(&px)) {
+                Some(Ordering::Greater | Ordering::Equal) => {
+                    let best_untracked_level = self.nth_best_level(N - 1);
+                    self.top_n_levels.replace_sort(price, best_untracked_level);
+                    debug!(
+                        "Removed tracked level at price {:?} and replaced with {:?}",
+                        price, best_untracked_level
+                    );
+                }
+                None => {
+                    self.top_n_levels.replace_sort(price, None);
+                    debug!("Removed tracked level at price {:?}, no replacement", price);
+                }
+                Some(Ordering::Less) => {
+                    debug!("Removed untracked level at price {:?}", price);
+                }
+            }
+        } else {
+            let found_level_type = self.find_or_create_level_and_set_qty(price, new_qty);
+            match (
+                found_level_type,
+                self.top_n_levels.worst_price.map(|px| price.cmp(&px)),
+            ) {
+                (FoundLevelType::Existing(_), Some(Ordering::Greater) | None) => {
+                    self.top_n_levels.update_qty(price, new_qty);
+                    debug!(
+                        "Updated existing tracked level. Price: {:?}, New Qty: {:?}",
+                        price, new_qty
+                    );
+                }
+                (FoundLevelType::Existing(_), Some(Ordering::Equal)) => {
+                    if let Some(px_level) = self
+                        .top_n_levels
+                        .levels
+                        .last_mut()
+                        .expect("There is at least one element")
+                    {
+                        px_level.qty = new_qty;
+                    }
+                    debug!(
+                        "Updated qty at worst tracked level. Price: {:?}, New Qty: {:?}",
+                        price, new_qty
+                    );
+                }
+                (FoundLevelType::New(_), Some(Ordering::Greater) | None) => {
+                    self.top_n_levels.insert_sort(PriceLevel {
+                        price,
+                        qty: new_qty,
+                    });
+                    debug!(
+                        "Inserted new tracked level. Price: {:?}, Qty: {:?}",
+                        price, new_qty
+                    );
+                }
+                _ => {
+                    debug!(
+                        "Ignored update for untracked level. Price: {:?}, New Qty: {:?}",
+                        price, new_qty
+                    );
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use order_book_core::price_level::{AskPrice, BidPrice};
@@ -263,6 +336,25 @@ mod tests {
             ask_side_1.delete_qty($price.into(), $qty).unwrap();
             ask_side_2.delete_qty($price.into(), $qty).unwrap();
             ask_side_3.delete_qty($price.into(), $qty).unwrap();
+        };
+    }
+
+    macro_rules! set_level {
+        ($price:expr, $qty:expr, $books:expr) => {
+            let (
+                ref mut bid_side_1,
+                ref mut bid_side_2,
+                ref mut bid_side_3,
+                ref mut ask_side_1,
+                ref mut ask_side_2,
+                ref mut ask_side_3,
+            ) = $books;
+            bid_side_1.set_level($price.into(), $qty);
+            bid_side_2.set_level($price.into(), $qty);
+            bid_side_3.set_level($price.into(), $qty);
+            ask_side_1.set_level($price.into(), $qty);
+            ask_side_2.set_level($price.into(), $qty);
+            ask_side_3.set_level($price.into(), $qty);
         };
     }
 
@@ -739,6 +831,175 @@ mod tests {
             }),
         ];
 
+        assert_top_n_bids!(expected_top_n_bids, book_sides);
+        assert_top_n_asks!(expected_top_n_asks, book_sides);
+    }
+
+    #[test]
+    fn test_set_level() {
+        let mut book_sides = create_books();
+
+        // Test setting initial levels
+        set_level!(100, 10, book_sides);
+        set_level!(105, 15, book_sides);
+
+        let expected_top_n_bids = [
+            Some(PriceLevel {
+                price: BidPrice(105),
+                qty: 15,
+            }),
+            Some(PriceLevel {
+                price: BidPrice(100),
+                qty: 10,
+            }),
+            None,
+        ];
+        let expected_top_n_asks = [
+            Some(PriceLevel {
+                price: AskPrice(100),
+                qty: 10,
+            }),
+            Some(PriceLevel {
+                price: AskPrice(105),
+                qty: 15,
+            }),
+            None,
+        ];
+        assert_top_n_bids!(expected_top_n_bids, book_sides);
+        assert_top_n_asks!(expected_top_n_asks, book_sides);
+
+        // Test updating existing levels and adding new ones
+        set_level!(101, 20, book_sides);
+        set_level!(100, 5, book_sides); // Updating existing level
+        set_level!(104, 25, book_sides);
+
+        let expected_top_n_bids = [
+            Some(PriceLevel {
+                price: BidPrice(105),
+                qty: 15,
+            }),
+            Some(PriceLevel {
+                price: BidPrice(104),
+                qty: 25,
+            }),
+            Some(PriceLevel {
+                price: BidPrice(101),
+                qty: 20,
+            }),
+        ];
+        let expected_top_n_asks = [
+            Some(PriceLevel {
+                price: AskPrice(100),
+                qty: 5,
+            }),
+            Some(PriceLevel {
+                price: AskPrice(101),
+                qty: 20,
+            }),
+            Some(PriceLevel {
+                price: AskPrice(104),
+                qty: 25,
+            }),
+        ];
+        assert_top_n_bids!(expected_top_n_bids, book_sides);
+        assert_top_n_asks!(expected_top_n_asks, book_sides);
+
+        // Test removing a level by setting quantity to zero
+        set_level!(100, 0, book_sides);
+        set_level!(105, 0, book_sides);
+
+        let expected_top_n_bids = [
+            Some(PriceLevel {
+                price: BidPrice(104),
+                qty: 25,
+            }),
+            Some(PriceLevel {
+                price: BidPrice(101),
+                qty: 20,
+            }),
+            None,
+        ];
+        let expected_top_n_asks = [
+            Some(PriceLevel {
+                price: AskPrice(101),
+                qty: 20,
+            }),
+            Some(PriceLevel {
+                price: AskPrice(104),
+                qty: 25,
+            }),
+            None,
+        ];
+        assert_top_n_bids!(expected_top_n_bids, book_sides);
+        assert_top_n_asks!(expected_top_n_asks, book_sides);
+
+        // Test setting levels beyond top N
+        set_level!(102, 30, book_sides);
+        set_level!(103, 40, book_sides);
+        set_level!(99, 5, book_sides);
+
+        let expected_top_n_bids = [
+            Some(PriceLevel {
+                price: BidPrice(104),
+                qty: 25,
+            }),
+            Some(PriceLevel {
+                price: BidPrice(103),
+                qty: 40,
+            }),
+            Some(PriceLevel {
+                price: BidPrice(102),
+                qty: 30,
+            }),
+        ];
+        let expected_top_n_asks = [
+            Some(PriceLevel {
+                price: AskPrice(99),
+                qty: 5,
+            }),
+            Some(PriceLevel {
+                price: AskPrice(101),
+                qty: 20,
+            }),
+            Some(PriceLevel {
+                price: AskPrice(102),
+                qty: 30,
+            }),
+        ];
+        assert_top_n_bids!(expected_top_n_bids, book_sides);
+        assert_top_n_asks!(expected_top_n_asks, book_sides);
+
+        // Test updating a level to become the new best
+        set_level!(98, 35, book_sides);
+
+        let expected_top_n_bids = [
+            Some(PriceLevel {
+                price: BidPrice(104),
+                qty: 25,
+            }),
+            Some(PriceLevel {
+                price: BidPrice(103),
+                qty: 40,
+            }),
+            Some(PriceLevel {
+                price: BidPrice(102),
+                qty: 30,
+            }),
+        ];
+        let expected_top_n_asks = [
+            Some(PriceLevel {
+                price: AskPrice(98),
+                qty: 35,
+            }),
+            Some(PriceLevel {
+                price: AskPrice(99),
+                qty: 5,
+            }),
+            Some(PriceLevel {
+                price: AskPrice(101),
+                qty: 20,
+            }),
+        ];
         assert_top_n_bids!(expected_top_n_bids, book_sides);
         assert_top_n_asks!(expected_top_n_asks, book_sides);
     }
