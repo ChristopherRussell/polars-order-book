@@ -9,5 +9,6 @@ quote = "1"
 proc-macro2 = "1"
 hashbrown = "0.14"
 
+
 [lib]
 proc-macro = true

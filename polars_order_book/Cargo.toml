@@ -10,23 +10,23 @@ crate-type = ["cdylib"]
 [dependencies]
 order-book = { path = "../order_book" }
 order-book-core = { path = "../order_book_core" }
-pyo3 = { version = "0.21", features = ["extension-module", "abi3-py38"] }
-pyo3-polars = { version = "0.15.0", features = ["derive"] }
+pyo3 = { version = "0.22.3", features = ["extension-module", "abi3-py38"] }
+pyo3-polars = { version = "0.17.0", features = ["derive", "dtype-struct", "dtype-array"] }
 serde = { version = "1", features = ["derive"] }
-polars = { version = "0.41.3", features = [
+polars = { version = "0.43.1", features = [
     "dtype-struct",
     "dtype-array",
     "fmt",
 ], default-features = false }
-polars-arrow = "0.41.3"
+polars-arrow = "0.43.1"
 hashbrown = "0.14"
-log = "0.4.14"
-env_logger = "0.11.3"
-thiserror = "1.0.29"
+log = "0.4.22"
+env_logger = "0.11.5"
+thiserror = "1.0.64"
 eyre = "0.6.2"
 color-eyre = "0.6.3"
-num = "0.4.0"
-anyhow = "1.0.44"
+num = "0.4.3"
+anyhow = "1.0.89"
 itertools = "0.13.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"
