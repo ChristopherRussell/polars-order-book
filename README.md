@@ -214,3 +214,5 @@ shape: (6, 12)
        .unnest("top_levels")
    )
    ```
+
+![Polar Order Bear](polar_order_bear.jpg)

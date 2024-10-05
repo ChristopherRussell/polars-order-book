@@ -63,3 +63,22 @@ docstring-quotes = "double"
   "INP001"  # Don't need __init__.py in test directory
   ]
 "__init__.py" = ["D"]  # Disable docstring checks for __init__.py
+
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["osx-arm64"]
+
+[tool.pixi.pypi-dependencies]
+polars-order-book = { path = ".", editable = true }
+
+[tool.pixi.tasks]
+
+[tool.pixi.dependencies]
+vegafusion = ">=1.6.9,<1.7"
+vegafusion-python-embed = ">=1.6.9,<1.7"
+vegafusion-jupyter = ">=1.6.9,<1.7"
+jupyterlab = ">=4.2.5,<4.3"
+polars = ">=1.9.0,<1.10"
+pandas = ">=2.2.3,<2.3"
+altair = ">=5.4.1,<5.5"
+ipykernel = ">=6.29.5,<6.30"
