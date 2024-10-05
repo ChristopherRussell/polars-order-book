@@ -56,9 +56,10 @@ pub trait BookSide<Px: price_level::Price, Qty: QuantityLike>: Debug {
         debug!("Adding quantity to book_side");
         match self.levels_mut().entry(price) {
             hashbrown::hash_map::Entry::Occupied(o) => {
-                let current_qty = dbg!(o.into_mut());
+                debug!("Updating an existing price level");
+                let current_qty = o.into_mut();
                 *current_qty += qty;
-                dbg!(FoundLevelType::Existing(*current_qty))
+                FoundLevelType::Existing(*current_qty)
             }
             hashbrown::hash_map::Entry::Vacant(v) => {
                 debug!("Created a new price level");
