@@ -30,7 +30,7 @@ fn bbo_struct(input_fields: &[Field], kwargs: TopNLevelsKwargs) -> PolarsResult<
     if n > 1 {
         let bbo_struct = DataType::Struct(vec![
             Field::new(
-                "bid_px",
+                "bid_price",
                 DataType::Array(Box::new(price_field.data_type().clone()), n),
             ),
             Field::new(
@@ -38,7 +38,7 @@ fn bbo_struct(input_fields: &[Field], kwargs: TopNLevelsKwargs) -> PolarsResult<
                 DataType::Array(Box::new(qty_field.data_type().clone()), n),
             ),
             Field::new(
-                "ask_px",
+                "ask_price",
                 DataType::Array(Box::new(price_field.data_type().clone()), n),
             ),
             Field::new(
@@ -128,10 +128,17 @@ pub fn pl_calculate_bbo_price_update(
     inputs: &[Series],
     kwargs: TopNLevelsKwargs,
 ) -> PolarsResult<Series> {
+    _pl_calculate_bbo_price_update(inputs, kwargs)
+}
+
+fn _pl_calculate_bbo_price_update(
+    inputs: &[Series],
+    kwargs: TopNLevelsKwargs,
+) -> PolarsResult<Series> {
     let updates_iter = crate::update::PriceUpdateIterator::new(
-        inputs[2].bool()?.into_iter(),
-        inputs[0].i64()?.into_iter(),
-        inputs[1].i64()?.into_iter(),
+        inputs[2].bool()?.into_iter(), // is_bid
+        inputs[0].i64()?.into_iter(),  // price
+        inputs[1].i64()?.into_iter(),  // qty
     );
 
     generate_n_cases!(
@@ -166,10 +173,17 @@ pub fn pl_calculate_bbo_price_mutation(
     inputs: &[Series],
     kwargs: TopNLevelsKwargs,
 ) -> PolarsResult<Series> {
+    _pl_calculate_bbo_price_mutation(inputs, kwargs)
+}
+
+fn _pl_calculate_bbo_price_mutation(
+    inputs: &[Series],
+    kwargs: TopNLevelsKwargs,
+) -> PolarsResult<Series> {
     let updates_iter = crate::update::PriceMutationIterator::new(
-        inputs[2].bool()?.into_iter(),
-        inputs[0].i64()?.into_iter(),
-        inputs[1].i64()?.into_iter(),
+        inputs[2].bool()?.into_iter(), // is_bid
+        inputs[0].i64()?.into_iter(),  // price
+        inputs[1].i64()?.into_iter(),  // qty
     );
 
     generate_n_cases!(
@@ -204,6 +218,13 @@ pub fn pl_calculate_bbo_mutation_modify(
     inputs: &[Series],
     kwargs: TopNLevelsKwargs,
 ) -> PolarsResult<Series> {
+    _pl_calculate_bbo_mutation_modify(inputs, kwargs)
+}
+
+fn _pl_calculate_bbo_mutation_modify(
+    inputs: &[Series],
+    kwargs: TopNLevelsKwargs,
+) -> PolarsResult<Series> {
     if inputs.len() != 5 {
         return Err(PolarsError::ShapeMismatch(
             "Expected 5 input columns: price, qty, is_bid, prev_price, prev_qty".into(),
@@ -211,11 +232,11 @@ pub fn pl_calculate_bbo_mutation_modify(
     }
 
     let updates_iter = crate::update::PriceMutationWithModifyIterator::new(
-        inputs[2].bool()?.into_iter(),
-        inputs[0].i64()?.into_iter(),
-        inputs[1].i64()?.into_iter(),
-        inputs[3].i64()?.into_iter(),
-        inputs[4].i64()?.into_iter(),
+        inputs[2].bool()?.into_iter(), // is_bid
+        inputs[0].i64()?.into_iter(),  // price
+        inputs[1].i64()?.into_iter(),  // qty
+        inputs[3].i64()?.into_iter(),  // prev_price
+        inputs[4].i64()?.into_iter(),  // prev_qty
     );
 
     generate_n_cases!(
@@ -243,4 +264,255 @@ pub fn pl_calculate_bbo_mutation_modify(
         19,
         20
     )
+}
+
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_calculate_bbo_from_simple_mutations() {
+        let mut df = df! {
+            "price" => [1i64, 2, 3, 4, 5, 9, 8, 7, 6],
+            "qty" => [10i64, 20, 30, 40, 50, 90, 80, 70, 60],
+            "is_bid" => [true, true, true, true, true, false, false, false, false],
+        }
+        .unwrap();
+        let inputs = df.get_columns();
+        let kwargs = TopNLevelsKwargs { n: 1 };
+
+        let bbo_struct = _pl_calculate_bbo_price_mutation(inputs, kwargs).unwrap();
+        df = df
+            .with_column(bbo_struct)
+            .expect("Failed to add BBO struct series to DataFrame")
+            .unnest(["bbo"])
+            .expect("Failed to unnest BBO struct series");
+
+        let expected = df! {
+            "price" => [1i64, 2, 3, 4, 5, 9, 8, 7, 6],
+            "qty" => [10i64, 20, 30, 40, 50, 90, 80, 70, 60],
+            "is_bid" => [true, true, true, true, true, false, false, false, false],
+            "bid_price_1" => [1i64, 2, 3, 4, 5, 5, 5, 5, 5],
+            "bid_qty_1" => [10i64, 20, 30, 40, 50, 50, 50, 50, 50],
+            "ask_price_1" => [None, None, None, None, None, Some(9i64), Some(8), Some(7), Some(6)],
+            "ask_qty_1" => [None, None, None, None, None, Some(90i64), Some(80), Some(70), Some(60)],
+        }.unwrap();
+        assert_eq!(df, expected);
+    }
+
+    #[test]
+    fn test_calculate_bbo_with_modifies() {
+        let mut df = df! {
+            "price" => [1i64, 2, 3, 4, 5, 9, 8, 7, 6, 1, 9],
+            "qty" => [10i64, 20, 30, 40, 50, 90, 80, 70, 60, 1, 1],
+            "is_bid" => [true, true, true, true, true, false, false, false, false, true, false],
+            "prev_price" => [None, Some(1i64), Some(2), Some(3), Some(4), None, Some(9), Some(8), Some(7), Some(5), Some(6)],
+            "prev_qty" => [None, Some(10i64), Some(20), Some(30), Some(40), None, Some(90), Some(80), Some(70), Some(50), Some(60)],
+        }
+            .unwrap();
+        let inputs = df.get_columns();
+        let kwargs = TopNLevelsKwargs { n: 1 };
+        let bbo_struct = _pl_calculate_bbo_mutation_modify(inputs, kwargs).unwrap();
+        df = df
+            .with_column(bbo_struct)
+            .expect("Failed to add BBO struct series to DataFrame")
+            .unnest(["bbo"])
+            .expect("Failed to unnest BBO struct series");
+        let expected = df! {
+            "price" => [1i64, 2, 3, 4, 5, 9, 8, 7, 6, 1, 9],
+            "qty" => [10i64, 20, 30, 40, 50, 90, 80, 70, 60, 1, 1],
+            "is_bid" => [true, true, true, true, true, false, false, false, false, true, false],
+            "prev_price" => [None, Some(1i64), Some(2), Some(3), Some(4), None, Some(9), Some(8), Some(7), Some(5), Some(6)],
+            "prev_qty" => [None, Some(10i64), Some(20), Some(30), Some(40), None, Some(90), Some(80), Some(70), Some(50), Some(60)],
+            "bid_price_1" => [1i64, 2, 3, 4, 5, 5, 5, 5, 5, 1, 1],
+            "bid_qty_1" => [10i64, 20, 30, 40, 50, 50, 50, 50, 50, 1, 1],
+            "ask_price_1" => [None, None, None, None, None, Some(9i64), Some(8), Some(7), Some(6), Some(6), Some(9)],
+            "ask_qty_1" => [None, None, None, None, None, Some(90i64), Some(80), Some(70), Some(60), Some(60), Some(1)],
+        }
+            .unwrap();
+        assert_eq!(df, expected);
+    }
+
+    #[test]
+    fn test_calculate_bbo_with_modifies_cyclic() {
+        let mut df = df! {
+            "price" => vec![1i64, 6, 2,3,1, 5,4,6],
+            "qty" => vec![1i64, 6, 2,3,1, 5,4,6],
+            "is_bid" => vec![true, false, true, true, true, false, false, false],
+            "prev_price" => vec![None, None, Some(1i64), Some(2), Some(3), Some(6), Some(5), Some(4)],
+            "prev_qty" => vec![None, None, Some(1i64), Some(2), Some(3), Some(6), Some(5), Some(4)],
+        }.unwrap();
+
+        let inputs = df.get_columns();
+        let kwargs = TopNLevelsKwargs { n: 1 };
+
+        let bbo_struct = _pl_calculate_bbo_mutation_modify(inputs, kwargs).unwrap();
+        let df = df
+            .with_column(bbo_struct)
+            .expect("Failed to add BBO struct series to DataFrame")
+            .unnest(["bbo"])
+            .expect("Failed to unnest BBO struct series");
+
+        let expected_values = df! {
+            "price" => vec![1, 6, 2,3,1, 5,4,6],
+            "qty" => vec![1, 6, 2,3,1, 5,4,6],
+            "is_bid" => vec![true, false, true, true, true, false, false, false],
+            "prev_price" => vec![None, None, Some(1), Some(2), Some(3), Some(6), Some(5), Some(4)],
+            "prev_qty" => vec![None, None, Some(1), Some(2), Some(3), Some(6), Some(5), Some(4)],
+            "bid_price_1" => vec![1, 1, 2, 3, 1, 1, 1, 1],
+            "bid_qty_1" => vec![1, 1, 2, 3, 1, 1, 1, 1],
+            "ask_price_1" => vec![None, Some(6), Some(6), Some(6), Some(6), Some(5), Some(4), Some(6)],
+            "ask_qty_1" => vec![None, Some(6), Some(6), Some(6), Some(6), Some(5), Some(4), Some(6)],
+        }.unwrap();
+
+        assert_eq!(df, expected_values);
+    }
+
+    #[test]
+    fn test_calculate_bbo_from_simple_mutations2() {
+        let df = df! {
+            "price" => [1i64, 2, 3, 4, 5, 9, 8, 7, 6],
+            "qty" => [10i64, 20, 30, 40, 50, 90, 80, 70, 60],
+            "is_bid" => [true, true, true, true, true, false, false, false, false],
+        }
+        .unwrap();
+
+        let expected = df! {
+            "price" => [1i64, 2, 3, 4, 5, 9, 8, 7, 6],
+            "qty" => [10i64, 20, 30, 40, 50, 90, 80, 70, 60],
+            "is_bid" => [true, true, true, true, true, false, false, false, false],
+            "bid_price_1" => [1i64, 2, 3, 4, 5, 5, 5, 5, 5],
+            "bid_price_2" => [None, Some(1i64), Some(2), Some(3), Some(4), Some(4), Some(4), Some(4), Some(4)],
+            "bid_qty_1" => [10i64, 20, 30, 40, 50, 50, 50, 50, 50],
+            "bid_qty_2" => [None, Some(10i64), Some(20), Some(30), Some(40), Some(40), Some(40), Some(40), Some(40)],
+            "ask_price_1" => [None, None, None, None, None, Some(9i64), Some(8), Some(7), Some(6)],
+            "ask_price_2" => [None, None, None, None, None, None, Some(9i64), Some(8), Some(7)],
+            "ask_qty_1" => [None, None, None, None, None, Some(90i64), Some(80), Some(70), Some(60)],
+            "ask_qty_2" => [None, None, None, None, None, None, Some(90i64), Some(80), Some(70)],
+        }
+        .unwrap();
+
+        for level in 1..=2 {
+            let kwargs = TopNLevelsKwargs { n: level };
+            let bbo_struct = _pl_calculate_bbo_price_mutation(df.get_columns(), kwargs).unwrap();
+            let df_with_bbo = df
+                .clone()
+                .with_column(bbo_struct)
+                .expect("Failed to add BBO struct series to DataFrame")
+                .unnest(["bbo"])
+                .expect("Failed to unnest BBO struct series");
+
+            if level == 1 {
+                let expected_df = expected.clone().drop_many(&[
+                    "bid_price_2",
+                    "bid_qty_2",
+                    "ask_price_2",
+                    "ask_qty_2",
+                ]);
+                assert_eq!(df_with_bbo, expected_df);
+            } else {
+                assert_eq!(df_with_bbo, expected);
+            }
+        }
+    }
+
+    #[test]
+    fn test_calculate_bbo_with_modifies2() {
+        let df = df! {
+                "price" => [1i64, 2, 3, 4, 5, 9, 8, 7, 6, 1, 9],
+                "qty" => [10i64, 20, 30, 40, 50, 90, 80, 70, 60, 1, 1],
+                "is_bid" => [true, true, true, true, true, false, false, false, false, true, false],
+                "prev_price" => [None, Some(1i64), Some(2), Some(3), Some(4), None, Some(9), Some(8), Some(7), Some(5), Some(6)],
+                "prev_qty" => [None, Some(10i64), Some(20), Some(30), Some(40), None, Some(90), Some(80), Some(70), Some(50), Some(60)],
+            }
+            .unwrap();
+
+        let expected = df! {
+            "price" => [1i64, 2, 3, 4, 5, 9, 8, 7, 6, 1, 9],
+            "qty" => [10i64, 20, 30, 40, 50, 90, 80, 70, 60, 1, 1],
+            "is_bid" => [true, true, true, true, true, false, false, false, false, true, false],
+            "prev_price" => [None, Some(1i64), Some(2), Some(3), Some(4), None, Some(9), Some(8), Some(7), Some(5), Some(6)],
+            "prev_qty" => [None, Some(10i64), Some(20), Some(30), Some(40), None, Some(90), Some(80), Some(70), Some(50), Some(60)],
+            "bid_price_1" => [1i64, 2, 3, 4, 5, 5, 5, 5, 5, 1, 1],
+            "bid_price_2" => [Option::<i64>::None, None, None, None, None, None, None, None, None, None, None],            "bid_qty_1" => [10i64, 20, 30, 40, 50, 50, 50, 50, 50, 1, 1],
+            "bid_qty_2" => [Option::<i64>::None, None, None, None, None, None, None, None, None, None, None],
+            "ask_price_1" => [None, None, None, None, None, Some(9i64), Some(8), Some(7), Some(6), Some(6), Some(9)],
+            "ask_price_2" => [Option::<i64>::None, None, None, None, None, None, None, None, None, None, None],
+            "ask_qty_1" => [None, None, None, None, None, Some(90i64), Some(80), Some(70), Some(60), Some(60), Some(1)],
+            "ask_qty_2" => [Option::<i64>::None, None, None, None, None, None, None, None, None, None, None],
+            }
+            .unwrap();
+
+        for level in 1..=2 {
+            let kwargs = TopNLevelsKwargs { n: level };
+            let bbo_struct = _pl_calculate_bbo_mutation_modify(df.get_columns(), kwargs).unwrap();
+            let df_with_bbo = df
+                .clone()
+                .with_column(bbo_struct)
+                .expect("Failed to add BBO struct series to DataFrame")
+                .unnest(["bbo"])
+                .expect("Failed to unnest BBO struct series");
+
+            if level == 1 {
+                let expected_df = expected.clone().drop_many(&[
+                    "bid_price_2",
+                    "bid_qty_2",
+                    "ask_price_2",
+                    "ask_qty_2",
+                ]);
+                assert_eq!(df_with_bbo, expected_df);
+            } else {
+                assert_eq!(df_with_bbo, expected);
+            }
+        }
+    }
+
+    #[test]
+    fn test_calculate_bbo_with_modifies_cyclic2() {
+        let df = df! {
+            "price" => vec![1i64, 6, 2,3,1, 5,4,6],
+            "qty" => vec![1i64, 6, 2,3,1, 5,4,6],
+            "is_bid" => vec![true, false, true, true, true, false, false, false],
+            "prev_price" => vec![None, None, Some(1i64), Some(2), Some(3), Some(6), Some(5), Some(4)],
+            "prev_qty" => vec![None, None, Some(1i64), Some(2), Some(3), Some(6), Some(5), Some(4)],
+        }.unwrap();
+
+        let expected = df! {
+            "price" => vec![1, 6, 2,3,1, 5,4,6],
+            "qty" => vec![1, 6, 2,3,1, 5,4,6],
+            "is_bid" => vec![true, false, true, true, true, false, false, false],
+            "prev_price" => vec![None, None, Some(1), Some(2), Some(3), Some(6), Some(5), Some(4)],
+            "prev_qty" => vec![None, None, Some(1), Some(2), Some(3), Some(6), Some(5), Some(4)],
+            "bid_price_1" => vec![1, 1, 2, 3, 1, 1, 1, 1],
+            "bid_price_2" => vec![Option::<i64>::None, None, None, None, None, None, None, None],
+            "bid_qty_1" => vec![1, 1, 2, 3, 1, 1, 1, 1],
+            "bid_qty_2" => vec![Option::<i64>::None, None, None, None, None, None, None, None],
+            "ask_price_1" => vec![None, Some(6), Some(6), Some(6), Some(6), Some(5), Some(4), Some(6)],
+            "ask_price_2" => vec![Option::<i64>::None, None, None, None, None, None, None, None],
+            "ask_qty_1" => vec![None, Some(6), Some(6), Some(6), Some(6), Some(5), Some(4), Some(6)],
+            "ask_qty_2" => vec![Option::<i64>::None, None, None, None, None, None, None, None],
+        }.unwrap();
+
+        for level in 1..=2 {
+            let kwargs = TopNLevelsKwargs { n: level };
+            let bbo_struct = _pl_calculate_bbo_mutation_modify(df.get_columns(), kwargs).unwrap();
+            let df_with_bbo = df
+                .clone()
+                .with_column(bbo_struct)
+                .expect("Failed to add BBO struct series to DataFrame")
+                .unnest(["bbo"])
+                .expect("Failed to unnest BBO struct series");
+
+            if level == 1 {
+                let expected_df = expected.clone().drop_many(&[
+                    "bid_price_2",
+                    "bid_qty_2",
+                    "ask_price_2",
+                    "ask_qty_2",
+                ]);
+                assert_eq!(df_with_bbo, expected_df);
+            } else {
+                assert_eq!(df_with_bbo, expected);
+            }
+        }
+    }
 }
