@@ -71,8 +71,8 @@ impl<T: PriceLike> Price for BidPrice<T> {
 impl<T: PriceLike> Price for AskPrice<T> {
     type PriceType = T;
 
-    const SIDE_NAME: &'static str = "Bid";
-    const IS_BID: bool = true;
+    const SIDE_NAME: &'static str = "Ask";
+    const IS_BID: bool = false;
 
     fn value(&self) -> Self::PriceType {
         self.0
