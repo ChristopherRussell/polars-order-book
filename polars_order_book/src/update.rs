@@ -106,13 +106,15 @@ impl<
 
 impl<
         Px: price_level::PriceLike,
-        Qty: price_level::QuantityLike,
+        Qty: price_level::QuantityLike + num::Signed,
         Book: PricePointMutationBookOps<Px, Qty>,
     > ApplyUpdate<Px, Qty, Book> for PriceMutation<Px, Qty>
 {
     fn apply_update(self, book: &mut Book) -> Result<(), PricePointMutationOpsError> {
         match self.quantity.cmp(&Qty::zero()) {
-            std::cmp::Ordering::Less => book.delete_qty(self.is_bid, self.price, self.quantity)?,
+            std::cmp::Ordering::Less => {
+                book.delete_qty(self.is_bid, self.price, self.quantity.abs())?
+            }
             std::cmp::Ordering::Greater => book.add_qty(self.is_bid, self.price, self.quantity),
             // Adding could create a level, deleting could fail if level doesn't exist, so safest to do nothing.
             std::cmp::Ordering::Equal => {}
@@ -123,7 +125,7 @@ impl<
 
 impl<
         Px: price_level::PriceLike,
-        Qty: price_level::QuantityLike,
+        Qty: price_level::QuantityLike + num::Signed,
         Book: PricePointMutationBookOps<Px, Qty>,
     > ApplyUpdate<Px, Qty, Book> for PriceMutationWithModify<Px, Qty>
 {
@@ -140,10 +142,11 @@ impl<
                 self.price,
                 self.quantity,
             )?,
+
             (std::cmp::Ordering::Greater, None, None) => book.add_qty(self.is_bid, self.price, self.quantity),
-            (std::cmp::Ordering::Less, None, None) => book.delete_qty(self.is_bid, self.price, self.quantity)?,
+            (std::cmp::Ordering::Less, None, None) => book.delete_qty(self.is_bid, self.price, self.quantity.abs())?,
             (std::cmp::Ordering::Greater, Some(prev_quantity), None) => {
-                book.delete_qty(self.is_bid, self.price, prev_quantity - self.quantity)?;
+                book.delete_qty(self.is_bid, self.price, prev_quantity - self.quantity.abs())?;
             }
             (std::cmp::Ordering::Equal, None, None) => {}
             (std::cmp::Ordering::Equal, Some(prev_quantity), None) => {
