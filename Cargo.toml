@@ -1,5 +1,5 @@
 [workspace]
-
+resolver = "2"
 members = [
     "order_book_derive",
     "order_book",
