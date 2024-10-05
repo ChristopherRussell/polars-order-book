@@ -268,6 +268,7 @@ fn _pl_calculate_bbo_mutation_modify(
 }
 
 mod tests {
+    #[allow(unused_imports)] // Not sure why clippy is complaining about unused imports here
     use super::*;
 
     #[test]

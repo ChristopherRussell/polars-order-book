@@ -182,7 +182,7 @@ impl<'a> PriceUpdateIterator<'a> {
     }
 }
 
-impl<'a> Iterator for PriceUpdateIterator<'a> {
+impl Iterator for PriceUpdateIterator<'_> {
     type Item = Result<PriceUpdate<i64, i64>, UpdateMissingValueError>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -222,7 +222,7 @@ impl<'a> PriceMutationIterator<'a> {
     }
 }
 
-impl<'a> Iterator for PriceMutationIterator<'a> {
+impl Iterator for PriceMutationIterator<'_> {
     type Item = Result<PriceMutation<i64, i64>, UpdateMissingValueError>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -268,7 +268,7 @@ impl<'a> PriceMutationWithModifyIterator<'a> {
     }
 }
 
-impl<'a> Iterator for PriceMutationWithModifyIterator<'a> {
+impl Iterator for PriceMutationWithModifyIterator<'_> {
     type Item = Result<PriceMutationWithModify<i64, i64>, UpdateMissingValueError>;
 
     fn next(&mut self) -> Option<Self::Item> {
