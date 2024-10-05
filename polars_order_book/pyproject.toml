@@ -13,6 +13,7 @@ classifiers = [
 
 [tool.maturin]
 module-name = "polars_order_book._internal"
+cargo-extra-args = ["--features", "extension-module"]
 
 [[tool.mypy.overrides]]
 module = "polars.utils.udfs"
