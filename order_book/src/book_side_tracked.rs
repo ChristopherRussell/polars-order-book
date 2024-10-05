@@ -422,6 +422,11 @@ mod tests {
         assert_top_n_bids!(expected_top_n_bids, book_sides);
         assert_top_n_asks!(expected_top_n_asks, book_sides);
 
+        add_qty!(200, 11, book_sides);
+        delete_qty!(200, 11, book_sides);
+        assert_top_n_bids!(expected_top_n_bids, book_sides);
+        assert_top_n_asks!(expected_top_n_asks, book_sides);
+
         delete_qty!(100, 10, book_sides);
         let expected_top_n_bids = [None, None, None];
         let expected_top_n_asks = [None, None, None];
