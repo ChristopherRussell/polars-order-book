@@ -28,25 +28,26 @@ fn bbo_struct(input_fields: &[Field], kwargs: TopNLevelsKwargs) -> PolarsResult<
     let n = kwargs.n;
 
     if n > 1 {
-        let bbo_struct = DataType::Struct(vec![
-            Field::new(
-                "bid_price",
-                DataType::Array(Box::new(price_field.data_type().clone()), n),
-            ),
-            Field::new(
-                "bid_qty",
-                DataType::Array(Box::new(qty_field.data_type().clone()), n),
-            ),
-            Field::new(
-                "ask_price",
-                DataType::Array(Box::new(price_field.data_type().clone()), n),
-            ),
-            Field::new(
-                "ask_qty",
-                DataType::Array(Box::new(qty_field.data_type().clone()), n),
-            ),
-        ]);
-        Ok(Field::new("bbo", bbo_struct))
+        let mut bbo_struct = vec![];
+        for i in 1..=n {
+            bbo_struct.push(Field::new(
+                &format!("bid_price_{}", i),
+                price_field.data_type().clone(),
+            ));
+            bbo_struct.push(Field::new(
+                &format!("bid_qty_{}", i),
+                qty_field.data_type().clone(),
+            ));
+            bbo_struct.push(Field::new(
+                &format!("ask_price_{}", i),
+                price_field.data_type().clone(),
+            ));
+            bbo_struct.push(Field::new(
+                &format!("ask_qty_{}", i),
+                qty_field.data_type().clone(),
+            ));
+        }
+        Ok(Field::new("bbo", DataType::Struct(bbo_struct)))
     } else {
         let bbo_struct = DataType::Struct(vec![
             Field::new("bid_price_1", price_field.data_type().clone()),
