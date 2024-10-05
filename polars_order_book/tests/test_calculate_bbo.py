@@ -1,13 +1,76 @@
 import polars as pl
 import pytest
-from polars.testing.asserts import assert_frame_equal
+from polars.testing.asserts.frame import assert_frame_equal
 
-from polars_order_book import calculate_bbo
+from polars_order_book import (
+    top_n_levels_from_price_mutations,
+    top_n_levels_from_price_mutations_with_modify,
+    top_n_levels_from_price_updates,
+)
 
 
 @pytest.mark.parametrize("nr_tracked_levels", [1, 2, 4])
 @pytest.mark.parametrize("n", [1, 10, 100, 1000])
-def test_calculate_bbo(n: int, nr_tracked_levels: int):
+def test_top_n_level_from_updates(n: int, nr_tracked_levels: int):
+    market_data = pl.DataFrame(
+        {
+            "id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] * n,
+            "price": [1, 2, 3, 6, 5, 4, 3, 1, 2, 5, 4, 6] * n,
+            "qty": [1, 2, 3, 6, 5, 4, 0, 0, 0, 0, 0, 0] * n,
+            "is_bid": [
+                True,
+                True,
+                True,
+                False,
+                False,
+                False,
+                True,
+                True,
+                True,
+                False,
+                False,
+                False,
+            ]
+            * n,
+        },
+        schema={
+            "id": pl.Int8,
+            "price": pl.Int64,
+            "qty": pl.Int64,
+            "is_bid": pl.Boolean,
+        },
+    )
+    market_data = market_data.with_columns(
+        bbo=top_n_levels_from_price_updates(
+            price="price", qty="qty", is_bid="is_bid", n=nr_tracked_levels
+        )
+    ).unnest("bbo")
+
+    expected_values = {
+        "id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        "bid_price_1": [1, 2, 3, 3, 3, 3, 2, 2, None, None, None, None],
+        "ask_price_1": [None, None, None, 6, 5, 4, 4, 4, 4, 4, 6, None],
+        "bid_qty_1": [1, 2, 3, 3, 3, 3, 2, 2, None, None, None, None],
+        "ask_qty_1": [None, None, None, 6, 5, 4, 4, 4, 4, 4, 6, None],
+    }
+    expected = pl.DataFrame(
+        expected_values,
+        schema={k: v for k, v in market_data.schema.items() if k in expected_values},
+    )
+    expected = market_data.select("id").join(expected, on="id")
+
+    assert_frame_equal(
+        market_data.select(
+            "id", "bid_price_1", "ask_price_1", "bid_qty_1", "ask_qty_1"
+        ),
+        expected,
+        check_column_order=False,
+    )
+
+
+@pytest.mark.parametrize("nr_tracked_levels", [1, 2, 4])
+@pytest.mark.parametrize("n", [1, 10, 100, 1000])
+def test_top_n_level_from_mutations(n: int, nr_tracked_levels: int):
     market_data = pl.DataFrame(
         {
             "id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] * n,
@@ -37,7 +100,9 @@ def test_calculate_bbo(n: int, nr_tracked_levels: int):
         },
     )
     market_data = market_data.with_columns(
-        bbo=calculate_bbo("price", "qty", "is_bid", n=nr_tracked_levels)
+        bbo=top_n_levels_from_price_mutations(
+            price="price", qty="qty", is_bid="is_bid", n=nr_tracked_levels
+        )
     ).unnest("bbo")
 
     expected_values = {
@@ -64,7 +129,7 @@ def test_calculate_bbo(n: int, nr_tracked_levels: int):
 
 @pytest.mark.parametrize("nr_tracked_levels", [1, 2, 4])
 @pytest.mark.parametrize("n", [1, 10, 100, 1000])
-def test_calculate_bbo_with_mods(n: int, nr_tracked_levels: int):
+def test_top_n_level_from_mutations_with_modifies(n: int, nr_tracked_levels: int):
     market_data = pl.DataFrame(
         {
             "id": [-2, -1] + [1, 2, 3, 4, 5, 6] * n,
@@ -94,8 +159,13 @@ def test_calculate_bbo_with_mods(n: int, nr_tracked_levels: int):
     )
 
     market_data = market_data.with_columns(
-        bbo=calculate_bbo(
-            "price", "qty", "is_bid", "prev_price", "prev_qty", n=nr_tracked_levels
+        bbo=top_n_levels_from_price_mutations_with_modify(
+            price="price",
+            qty="qty",
+            is_bid="is_bid",
+            prev_price="prev_price",
+            prev_qty="prev_qty",
+            n=nr_tracked_levels,
         )
     ).unnest("bbo")
 
@@ -123,7 +193,9 @@ def test_calculate_bbo_with_mods(n: int, nr_tracked_levels: int):
 
 @pytest.mark.parametrize("nr_tracked_levels", [1, 2, 4])
 @pytest.mark.parametrize("n", [1, 10, 100, 1000])
-def test_calculate_bbo_with_modifies_not_used(n: int, nr_tracked_levels: int):
+def test_top_n_level_from_mutations_with_modifies_not_used(
+    n: int, nr_tracked_levels: int
+):
     market_data = pl.DataFrame(
         {
             "id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] * n,
@@ -155,8 +227,13 @@ def test_calculate_bbo_with_modifies_not_used(n: int, nr_tracked_levels: int):
         prev_price=pl.lit(None, dtype=pl.Int64), prev_qty=pl.lit(None, dtype=pl.Int64)
     )
     market_data = market_data.with_columns(
-        bbo=calculate_bbo(
-            "price", "qty", "is_bid", "prev_price", "prev_qty", n=nr_tracked_levels
+        bbo=top_n_levels_from_price_mutations_with_modify(
+            price="price",
+            qty="qty",
+            is_bid="is_bid",
+            prev_price="prev_price",
+            prev_qty="prev_qty",
+            n=nr_tracked_levels,
         )
     ).unnest("bbo")
 
@@ -203,8 +280,13 @@ def test_multiple_orders_per_level_modify(n: int, is_bid: bool, nr_tracked_level
     ).with_columns(is_bid=is_bid)
 
     market_data = market_data.with_columns(
-        bbo=calculate_bbo(
-            "price", "qty", "is_bid", "prev_price", "prev_qty", n=nr_tracked_levels
+        bbo=top_n_levels_from_price_mutations_with_modify(
+            price="price",
+            qty="qty",
+            is_bid="is_bid",
+            prev_price="prev_price",
+            prev_qty="prev_qty",
+            n=nr_tracked_levels,
         )
     ).unnest("bbo")
 
