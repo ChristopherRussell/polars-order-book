@@ -27,12 +27,12 @@ pub trait BookSide<Px: price_level::Price, Qty: QuantityLike>: Debug {
     fn levels_mut(&mut self) -> &mut HashMap<Px, Qty>;
 
     #[inline]
-    fn get_level_qty<'a>(&'a self, price: &'a Px) -> Option<&Qty> {
+    fn get_level_qty<'a>(&'a self, price: &'a Px) -> Option<&'a Qty> {
         self.levels().get(price)
     }
 
     #[inline]
-    fn get_level_qty_mut<'a>(&'a mut self, price: &'a Px) -> Option<&mut Qty> {
+    fn get_level_qty_mut<'a>(&'a mut self, price: &'a Px) -> Option<&'a mut Qty> {
         self.levels_mut().get_mut(price)
     }
 
@@ -75,7 +75,7 @@ pub trait BookSide<Px: price_level::Price, Qty: QuantityLike>: Debug {
         debug!("Setting quantity for level");
         match self.levels_mut().entry(price) {
             hashbrown::hash_map::Entry::Occupied(o) => {
-                o.replace_entry(qty);
+                o.replace_entry_with(|_, _| Some(qty));
                 FoundLevelType::Existing(qty)
             }
             hashbrown::hash_map::Entry::Vacant(v) => {

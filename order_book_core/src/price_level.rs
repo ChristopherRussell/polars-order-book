@@ -9,9 +9,11 @@ pub trait PriceLike: Copy + Debug + Hash + Eq + PartialEq + Ord + PartialOrd {}
 
 impl<T> PriceLike for T where T: Copy + Debug + Hash + Eq + PartialEq + Ord + PartialOrd {}
 
-/// The trait bound for PriceTypes, which are BidPrice and AskPrice. By encoding the side in the
-/// type system we can prevent errors where a BidPrice is used as an AskPrice or vice versa, as
-/// well improve performance by doing more work at compile time.
+/// The trait bound for PriceTypes, which are BidPrice and AskPrice.
+///
+/// By encoding the side in the type system we can prevent errors where a
+/// BidPrice is used as an AskPrice or vice versa, as well improve performance
+/// by doing more work at compile time.
 pub trait Price: PriceLike {
     type PriceType: PriceLike;
 

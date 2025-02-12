@@ -3,7 +3,7 @@ use polars::{
     df,
     error::PolarsResult,
     frame::DataFrame,
-    prelude::{ChunkedBuilder, Int64Type, PrimitiveChunkedBuilder},
+    prelude::{ChunkedBuilder, Int64Type, IntoColumn, PlSmallStr, PrimitiveChunkedBuilder},
     series::IntoSeries,
 };
 
@@ -46,10 +46,10 @@ impl OutputBuilder<TopOfBookOutput> for TopOfBookDataframeBuilder {
 impl TopOfBookDataframeBuilder {
     pub fn new(capacity: usize) -> Self {
         Self {
-            bid_price_1: PrimitiveChunkedBuilder::new("bid_price_1", capacity),
-            bid_qty_1: PrimitiveChunkedBuilder::new("bid_qty_1", capacity),
-            ask_price_1: PrimitiveChunkedBuilder::new("ask_price_1", capacity),
-            ask_qty_1: PrimitiveChunkedBuilder::new("ask_qty_1", capacity),
+            bid_price_1: PrimitiveChunkedBuilder::new(PlSmallStr::from("bid_price_1"), capacity),
+            bid_qty_1: PrimitiveChunkedBuilder::new(PlSmallStr::from("bid_qty_1"), capacity),
+            ask_price_1: PrimitiveChunkedBuilder::new(PlSmallStr::from("ask_price_1"), capacity),
+            ask_qty_1: PrimitiveChunkedBuilder::new(PlSmallStr::from("ask_qty_1"), capacity),
         }
     }
 }
@@ -93,7 +93,7 @@ impl<'a, const N: usize> OutputBuilder<TopNLevelsOutput<'a, N>> for TopNLevelsDa
             .chain(self.bid_qtys)
             .chain(self.ask_prices)
             .chain(self.ask_qtys)
-            .map(|builder| builder.finish().into_series())
+            .map(|builder| builder.finish().into_column())
             .collect();
         DataFrame::new(columns)
     }
@@ -104,16 +104,28 @@ impl<const N: usize> TopNLevelsDataframeBuilder<N> {
     pub fn new(capacity: usize) -> Self {
         Self {
             bid_prices: std::array::from_fn(|i| {
-                PrimitiveChunkedBuilder::new(&format!("bid_price_{}", i + 1), capacity)
+                PrimitiveChunkedBuilder::new(
+                    PlSmallStr::from(format!("bid_price_{}", i + 1)),
+                    capacity,
+                )
             }),
             bid_qtys: std::array::from_fn(|i| {
-                PrimitiveChunkedBuilder::new(&format!("bid_qty_{}", i + 1), capacity)
+                PrimitiveChunkedBuilder::new(
+                    PlSmallStr::from(format!("bid_qty_{}", i + 1)),
+                    capacity,
+                )
             }),
             ask_prices: std::array::from_fn(|i| {
-                PrimitiveChunkedBuilder::new(&format!("ask_price_{}", i + 1), capacity)
+                PrimitiveChunkedBuilder::new(
+                    PlSmallStr::from(format!("ask_price_{}", i + 1)),
+                    capacity,
+                )
             }),
             ask_qtys: std::array::from_fn(|i| {
-                PrimitiveChunkedBuilder::new(&format!("ask_qty_{}", i + 1), capacity)
+                PrimitiveChunkedBuilder::new(
+                    PlSmallStr::from(format!("ask_qty_{}", i + 1)),
+                    capacity,
+                )
             }),
         }
     }

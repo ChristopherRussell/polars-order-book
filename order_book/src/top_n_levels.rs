@@ -9,7 +9,6 @@ use tracing::{debug, instrument};
 /// with None representing that there are less than N levels in
 /// total. The array is sorted from best to worst price level.
 /// The array is updated on every add_qty and delete_qty operation.
-
 pub struct NLevels<Price: price_level::Price, Qty: QuantityLike, const N: usize> {
     pub levels: [Option<PriceLevel<Price, Qty>>; N],
     pub worst_price: Option<Price>,

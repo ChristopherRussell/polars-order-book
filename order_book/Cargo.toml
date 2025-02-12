@@ -21,7 +21,7 @@ order-book-core = { path = "../order_book_core" }
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports", "real_blackbox"] }
-polars = { version = "*", features = [
+polars = { version = "0.45.1", features = [
     "polars-io",
     "csv",
     "dtype-array",

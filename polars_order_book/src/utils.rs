@@ -20,6 +20,6 @@ where
                 (Some(lhs), Some(rhs)) => f(lhs.as_ref(), rhs.as_ref()),
                 _ => None,
             })
-            .collect_ca(ca.name())
+            .collect_ca(ca.name().to_owned())
     }
 }

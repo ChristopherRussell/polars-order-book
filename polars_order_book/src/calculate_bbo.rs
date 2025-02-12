@@ -31,31 +31,40 @@ fn bbo_struct(input_fields: &[Field], kwargs: TopNLevelsKwargs) -> PolarsResult<
         let mut bbo_struct = vec![];
         for i in 1..=n {
             bbo_struct.push(Field::new(
-                &format!("bid_price_{}", i),
-                price_field.data_type().clone(),
+                PlSmallStr::from_str(&format!("bid_price_{}", i)),
+                price_field.dtype().clone(),
             ));
             bbo_struct.push(Field::new(
-                &format!("bid_qty_{}", i),
-                qty_field.data_type().clone(),
+                PlSmallStr::from_str(&format!("bid_qty_{}", i)),
+                qty_field.dtype().clone(),
             ));
             bbo_struct.push(Field::new(
-                &format!("ask_price_{}", i),
-                price_field.data_type().clone(),
+                PlSmallStr::from_str(&format!("ask_price_{}", i)),
+                price_field.dtype().clone(),
             ));
             bbo_struct.push(Field::new(
-                &format!("ask_qty_{}", i),
-                qty_field.data_type().clone(),
+                PlSmallStr::from_str(&format!("ask_qty_{}", i)),
+                qty_field.dtype().clone(),
             ));
         }
-        Ok(Field::new("bbo", DataType::Struct(bbo_struct)))
+        Ok(Field::new(
+            PlSmallStr::from_str("bbo"),
+            DataType::Struct(bbo_struct),
+        ))
     } else {
         let bbo_struct = DataType::Struct(vec![
-            Field::new("bid_price_1", price_field.data_type().clone()),
-            Field::new("bid_qty_1", qty_field.data_type().clone()),
-            Field::new("ask_price_1", price_field.data_type().clone()),
-            Field::new("ask_qty_1", qty_field.data_type().clone()),
+            Field::new(
+                PlSmallStr::from_str("bid_price_1"),
+                price_field.dtype().clone(),
+            ),
+            Field::new(PlSmallStr::from_str("bid_qty_1"), qty_field.dtype().clone()),
+            Field::new(
+                PlSmallStr::from_str("ask_price_1"),
+                price_field.dtype().clone(),
+            ),
+            Field::new(PlSmallStr::from_str("ask_qty_1"), qty_field.dtype().clone()),
         ]);
-        Ok(Field::new("bbo", bbo_struct))
+        Ok(Field::new(PlSmallStr::from_str("bbo"), bbo_struct))
     }
 }
 
@@ -82,7 +91,10 @@ where
         builder.append(output);
     }
 
-    Ok(builder.finish()?.into_struct("bbo").into_series())
+    Ok(builder
+        .finish()?
+        .into_struct(PlSmallStr::from_str("bbo"))
+        .into_series())
 }
 
 fn calculate_bbo_top_n_levels<U, I, const N: usize>(
@@ -109,7 +121,10 @@ where
         builder.append(output);
     }
 
-    Ok(builder.finish()?.into_struct("bbo").into_series())
+    Ok(builder
+        .finish()?
+        .into_struct(PlSmallStr::from_str("bbo"))
+        .into_series())
 }
 
 macro_rules! generate_n_cases {
@@ -280,9 +295,13 @@ mod tests {
         }
         .unwrap();
         let inputs = df.get_columns();
+        let inputs = inputs
+            .iter()
+            .map(|c| c.clone().take_materialized_series())
+            .collect::<Vec<_>>();
         let kwargs = TopNLevelsKwargs { n: 1 };
 
-        let bbo_struct = _pl_calculate_bbo_price_mutation(inputs, kwargs).unwrap();
+        let bbo_struct = _pl_calculate_bbo_price_mutation(&inputs, kwargs).unwrap();
         df = df
             .with_column(bbo_struct)
             .expect("Failed to add BBO struct series to DataFrame")
@@ -312,8 +331,12 @@ mod tests {
         }
             .unwrap();
         let inputs = df.get_columns();
+        let inputs = inputs
+            .iter()
+            .map(|c| c.clone().take_materialized_series())
+            .collect::<Vec<_>>();
         let kwargs = TopNLevelsKwargs { n: 1 };
-        let bbo_struct = _pl_calculate_bbo_mutation_modify(inputs, kwargs).unwrap();
+        let bbo_struct = _pl_calculate_bbo_mutation_modify(&inputs, kwargs).unwrap();
         df = df
             .with_column(bbo_struct)
             .expect("Failed to add BBO struct series to DataFrame")
@@ -345,9 +368,13 @@ mod tests {
         }.unwrap();
 
         let inputs = df.get_columns();
+        let inputs = inputs
+            .iter()
+            .map(|c| c.clone().take_materialized_series())
+            .collect::<Vec<_>>();
         let kwargs = TopNLevelsKwargs { n: 1 };
 
-        let bbo_struct = _pl_calculate_bbo_mutation_modify(inputs, kwargs).unwrap();
+        let bbo_struct = _pl_calculate_bbo_mutation_modify(&inputs, kwargs).unwrap();
         let df = df
             .with_column(bbo_struct)
             .expect("Failed to add BBO struct series to DataFrame")
@@ -395,7 +422,12 @@ mod tests {
 
         for level in 1..=2 {
             let kwargs = TopNLevelsKwargs { n: level };
-            let bbo_struct = _pl_calculate_bbo_price_mutation(df.get_columns(), kwargs).unwrap();
+            let inputs = df
+                .get_columns()
+                .iter()
+                .map(|c| c.clone().take_materialized_series())
+                .collect::<Vec<_>>();
+            let bbo_struct = _pl_calculate_bbo_price_mutation(&inputs, kwargs).unwrap();
             let df_with_bbo = df
                 .clone()
                 .with_column(bbo_struct)
@@ -404,7 +436,7 @@ mod tests {
                 .expect("Failed to unnest BBO struct series");
 
             if level == 1 {
-                let expected_df = expected.clone().drop_many(&[
+                let expected_df = expected.clone().drop_many([
                     "bid_price_2",
                     "bid_qty_2",
                     "ask_price_2",
@@ -446,7 +478,12 @@ mod tests {
 
         for level in 1..=2 {
             let kwargs = TopNLevelsKwargs { n: level };
-            let bbo_struct = _pl_calculate_bbo_mutation_modify(df.get_columns(), kwargs).unwrap();
+            let inputs = df
+                .get_columns()
+                .iter()
+                .map(|c| c.clone().take_materialized_series())
+                .collect::<Vec<_>>();
+            let bbo_struct = _pl_calculate_bbo_mutation_modify(&inputs, kwargs).unwrap();
             let df_with_bbo = df
                 .clone()
                 .with_column(bbo_struct)
@@ -455,7 +492,7 @@ mod tests {
                 .expect("Failed to unnest BBO struct series");
 
             if level == 1 {
-                let expected_df = expected.clone().drop_many(&[
+                let expected_df = expected.clone().drop_many([
                     "bid_price_2",
                     "bid_qty_2",
                     "ask_price_2",
@@ -496,7 +533,12 @@ mod tests {
 
         for level in 1..=2 {
             let kwargs = TopNLevelsKwargs { n: level };
-            let bbo_struct = _pl_calculate_bbo_mutation_modify(df.get_columns(), kwargs).unwrap();
+            let inputs = df
+                .get_columns()
+                .iter()
+                .map(|c| c.clone().take_materialized_series())
+                .collect::<Vec<_>>();
+            let bbo_struct = _pl_calculate_bbo_mutation_modify(&inputs, kwargs).unwrap();
             let df_with_bbo = df
                 .clone()
                 .with_column(bbo_struct)
@@ -505,7 +547,7 @@ mod tests {
                 .expect("Failed to unnest BBO struct series");
 
             if level == 1 {
-                let expected_df = expected.clone().drop_many(&[
+                let expected_df = expected.clone().drop_many([
                     "bid_price_2",
                     "bid_qty_2",
                     "ask_price_2",
