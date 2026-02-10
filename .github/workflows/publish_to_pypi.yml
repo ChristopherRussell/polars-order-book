@@ -56,7 +56,7 @@ jobs:
         with:
           working-directory: polars_order_book
           target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --out dist
           sccache: 'true'
           manylinux: auto
       - name: Upload wheels
