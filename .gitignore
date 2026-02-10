@@ -1,3 +1,5 @@
+.cursor
+.pixi
 *.so
 *.pyc
 target
