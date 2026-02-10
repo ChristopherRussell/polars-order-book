@@ -60,9 +60,11 @@ impl<Px: price_level::Price, Qty: QuantityLike> BookSideWithBasicTracking<Px, Qt
     #[inline]
     fn update_best_price_after_level_delete(&mut self, deleted_price: Px) {
         if self.best_price == Some(deleted_price) {
-            if let Some(best_price) = self.levels().keys().max().copied() {
-                self.best_price_qty = self.levels().get(&best_price).copied();
+            if let Some((&best_price, &best_qty)) =
+                self.levels().iter().max_by_key(|(&price, _)| price)
+            {
                 self.best_price = Some(best_price);
+                self.best_price_qty = Some(best_qty);
             } else {
                 self.best_price = None;
                 self.best_price_qty = None;
@@ -83,7 +85,17 @@ impl<Px: price_level::Price, Qty: QuantityLike> PricePointMutationOps<Px, Qty>
 {
     #[inline]
     fn add_qty(&mut self, price: Px, qty: Qty) -> FoundLevelType<Qty> {
-        let found_level_type = self.find_or_create_level_and_add_qty(price, qty);
+        let found_level_type = match self.levels.entry(price) {
+            hashbrown::hash_map::Entry::Occupied(mut o) => {
+                let current_qty = o.get_mut();
+                *current_qty += qty;
+                FoundLevelType::Existing(*current_qty)
+            }
+            hashbrown::hash_map::Entry::Vacant(v) => {
+                v.insert(qty);
+                FoundLevelType::New(qty)
+            }
+        };
         match found_level_type {
             FoundLevelType::New(_) => self.update_best_price_after_add(price, qty),
             FoundLevelType::Existing(new_qty) => self.update_best_price_after_add(price, new_qty),
@@ -97,24 +109,28 @@ impl<Px: price_level::Price, Qty: QuantityLike> PricePointMutationOps<Px, Qty>
         price: Px,
         qty: Qty,
     ) -> Result<DeleteLevelType<Qty>, PricePointMutationOpsError> {
-        let current_qty =
-            self.levels_mut()
-                .get_mut(&price)
-                .ok_or(PricePointMutationOpsError::LevelError(
-                    LevelError::LevelNotFound,
-                ))?;
-        match qty.cmp(current_qty) {
-            std::cmp::Ordering::Equal => {
-                self.levels_mut().remove(&price);
-                self.update_best_price_after_level_delete(price);
-                Ok(DeleteLevelType::Deleted)
+        match self.levels.entry(price) {
+            hashbrown::hash_map::Entry::Occupied(mut o) => {
+                let current_qty = *o.get();
+                match qty.cmp(&current_qty) {
+                    std::cmp::Ordering::Equal => {
+                        o.remove();
+                        self.update_best_price_after_level_delete(price);
+                        Ok(DeleteLevelType::Deleted)
+                    }
+                    std::cmp::Ordering::Less => {
+                        *o.get_mut() -= qty;
+                        self.update_best_price_after_qty_delete(price, qty);
+                        Ok(DeleteLevelType::QuantityDecreased(qty))
+                    }
+                    std::cmp::Ordering::Greater => {
+                        Err(PricePointMutationOpsError::QtyExceedsAvailable)
+                    }
+                }
             }
-            std::cmp::Ordering::Less => {
-                *current_qty -= qty;
-                self.update_best_price_after_qty_delete(price, qty);
-                Ok(DeleteLevelType::QuantityDecreased(qty))
-            }
-            std::cmp::Ordering::Greater => Err(PricePointMutationOpsError::QtyExceedsAvailable),
+            hashbrown::hash_map::Entry::Vacant(_) => Err(
+                PricePointMutationOpsError::LevelError(LevelError::LevelNotFound),
+            ),
         }
     }
 }
