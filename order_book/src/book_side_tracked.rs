@@ -9,7 +9,11 @@ use order_book_core::book_side_ops::{
 };
 use order_book_core::price_level::{self, PriceLevel, QuantityLike};
 use order_book_derive::BookSide;
-use tracing::{debug, instrument};
+
+#[cfg(not(feature = "tracing"))]
+macro_rules! debug { ($($arg:tt)*) => {{}}; }
+#[cfg(feature = "tracing")]
+use tracing::debug;
 
 #[derive(BookSide)]
 pub struct BookSideWithTopNTracking<Px: price_level::Price, Qty: QuantityLike, const N: usize> {
@@ -59,7 +63,7 @@ impl<Px: price_level::Price, Qty: QuantityLike, const N: usize>
 impl<Px: price_level::Price, Qty: QuantityLike, const N: usize> PricePointMutationOps<Px, Qty>
     for BookSideWithTopNTracking<Px, Qty, N>
 {
-    #[instrument]
+    #[cfg_attr(feature = "tracing", tracing::instrument)]
     fn add_qty(&mut self, price: Px, qty: Qty) -> FoundLevelType<Qty> {
         let found_level_type = self.find_or_create_level_and_add_qty(price, qty);
         if N == 1 {
@@ -123,7 +127,7 @@ impl<Px: price_level::Price, Qty: QuantityLike, const N: usize> PricePointMutati
         found_level_type
     }
 
-    #[instrument]
+    #[cfg_attr(feature = "tracing", tracing::instrument)]
     fn delete_qty(
         &mut self,
         price: Px,
@@ -243,7 +247,6 @@ impl<Px: price_level::Price, Qty: QuantityLike, const N: usize> PricePointSummar
 #[cfg(test)]
 mod tests {
     use order_book_core::price_level::{AskPrice, BidPrice};
-    use tracing::Level;
 
     use super::*;
 
@@ -715,9 +718,10 @@ mod tests {
 
     #[test]
     fn test_full_book_side_with_cyclic_modify_price() {
+        #[cfg(feature = "tracing")]
         tracing_subscriber::fmt()
             .pretty()
-            .with_max_level(Level::TRACE)
+            .with_max_level(tracing::Level::TRACE)
             .with_test_writer()
             .init();
         let mut book_sides = create_books();

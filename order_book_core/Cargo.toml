@@ -6,10 +6,14 @@ license = "Apache-2.0"
 authors = ["Christopher Russell"]
 description = "Core types and traits for order book implementations"
 
+[features]
+default = []
+tracing = ["dep:tracing"]
+
 [dependencies]
 hashbrown = "0.15.2"
 itertools = "0.14.0"
-tracing = "0.1.41"
+tracing = { version = "0.1.41", optional = true }
 num = "0.4.3"
 thiserror = "1.0.65"
 anyhow = "1.0.86"
