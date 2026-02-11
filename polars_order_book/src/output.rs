@@ -87,14 +87,19 @@ impl<'a, const N: usize> OutputBuilder<TopNLevelsOutput<'a, N>> for TopNLevelsDa
     }
 
     fn finish(self) -> PolarsResult<DataFrame> {
-        let columns = self
+        let mut columns = Vec::with_capacity(4 * N);
+        for (((bp, bq), ap), aq) in self
             .bid_prices
             .into_iter()
-            .chain(self.bid_qtys)
-            .chain(self.ask_prices)
-            .chain(self.ask_qtys)
-            .map(|builder| builder.finish().into_column())
-            .collect();
+            .zip(self.bid_qtys)
+            .zip(self.ask_prices)
+            .zip(self.ask_qtys)
+        {
+            columns.push(bp.finish().into_column());
+            columns.push(bq.finish().into_column());
+            columns.push(ap.finish().into_column());
+            columns.push(aq.finish().into_column());
+        }
         DataFrame::new(columns)
     }
 }

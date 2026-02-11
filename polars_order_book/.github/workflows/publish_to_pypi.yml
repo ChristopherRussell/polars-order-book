@@ -62,7 +62,7 @@ jobs:
           
           target: ${{ matrix.target }}
           
-          args: --release --out dist --find-interpreter
+          args: --release --out dist
           sccache: 'true'
           manylinux: auto
       - name: Upload wheels
@@ -90,7 +90,7 @@ jobs:
           
           target: ${{ matrix.target }}
           
-          args: --release --out dist --find-interpreter
+          args: --release --out dist
           sccache: 'true'
       - name: Upload wheels
         uses: actions/upload-artifact@v3
@@ -114,7 +114,7 @@ jobs:
           
           target: ${{ matrix.target }}
           
-          args: --release --out dist --find-interpreter
+          args: --release --out dist
           sccache: 'true'
       - name: Upload wheels
         uses: actions/upload-artifact@v3

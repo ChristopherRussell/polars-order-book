@@ -410,12 +410,12 @@ mod tests {
             "qty" => [10i64, 20, 30, 40, 50, 90, 80, 70, 60],
             "is_bid" => [true, true, true, true, true, false, false, false, false],
             "bid_price_1" => [1i64, 2, 3, 4, 5, 5, 5, 5, 5],
-            "bid_price_2" => [None, Some(1i64), Some(2), Some(3), Some(4), Some(4), Some(4), Some(4), Some(4)],
             "bid_qty_1" => [10i64, 20, 30, 40, 50, 50, 50, 50, 50],
-            "bid_qty_2" => [None, Some(10i64), Some(20), Some(30), Some(40), Some(40), Some(40), Some(40), Some(40)],
             "ask_price_1" => [None, None, None, None, None, Some(9i64), Some(8), Some(7), Some(6)],
-            "ask_price_2" => [None, None, None, None, None, None, Some(9i64), Some(8), Some(7)],
             "ask_qty_1" => [None, None, None, None, None, Some(90i64), Some(80), Some(70), Some(60)],
+            "bid_price_2" => [None, Some(1i64), Some(2), Some(3), Some(4), Some(4), Some(4), Some(4), Some(4)],
+            "bid_qty_2" => [None, Some(10i64), Some(20), Some(30), Some(40), Some(40), Some(40), Some(40), Some(40)],
+            "ask_price_2" => [None, None, None, None, None, None, Some(9i64), Some(8), Some(7)],
             "ask_qty_2" => [None, None, None, None, None, None, Some(90i64), Some(80), Some(70)],
         }
         .unwrap();
@@ -467,11 +467,12 @@ mod tests {
             "prev_price" => [None, Some(1i64), Some(2), Some(3), Some(4), None, Some(9), Some(8), Some(7), Some(5), Some(6)],
             "prev_qty" => [None, Some(10i64), Some(20), Some(30), Some(40), None, Some(90), Some(80), Some(70), Some(50), Some(60)],
             "bid_price_1" => [1i64, 2, 3, 4, 5, 5, 5, 5, 5, 1, 1],
-            "bid_price_2" => [Option::<i64>::None, None, None, None, None, None, None, None, None, None, None],            "bid_qty_1" => [10i64, 20, 30, 40, 50, 50, 50, 50, 50, 1, 1],
-            "bid_qty_2" => [Option::<i64>::None, None, None, None, None, None, None, None, None, None, None],
+            "bid_qty_1" => [10i64, 20, 30, 40, 50, 50, 50, 50, 50, 1, 1],
             "ask_price_1" => [None, None, None, None, None, Some(9i64), Some(8), Some(7), Some(6), Some(6), Some(9)],
-            "ask_price_2" => [Option::<i64>::None, None, None, None, None, None, None, None, None, None, None],
             "ask_qty_1" => [None, None, None, None, None, Some(90i64), Some(80), Some(70), Some(60), Some(60), Some(1)],
+            "bid_price_2" => [Option::<i64>::None, None, None, None, None, None, None, None, None, None, None],
+            "bid_qty_2" => [Option::<i64>::None, None, None, None, None, None, None, None, None, None, None],
+            "ask_price_2" => [Option::<i64>::None, None, None, None, None, None, None, None, None, None, None],
             "ask_qty_2" => [Option::<i64>::None, None, None, None, None, None, None, None, None, None, None],
             }
             .unwrap();
@@ -522,12 +523,12 @@ mod tests {
             "prev_price" => vec![None, None, Some(1), Some(2), Some(3), Some(6), Some(5), Some(4)],
             "prev_qty" => vec![None, None, Some(1), Some(2), Some(3), Some(6), Some(5), Some(4)],
             "bid_price_1" => vec![1, 1, 2, 3, 1, 1, 1, 1],
-            "bid_price_2" => vec![Option::<i64>::None, None, None, None, None, None, None, None],
             "bid_qty_1" => vec![1, 1, 2, 3, 1, 1, 1, 1],
-            "bid_qty_2" => vec![Option::<i64>::None, None, None, None, None, None, None, None],
             "ask_price_1" => vec![None, Some(6), Some(6), Some(6), Some(6), Some(5), Some(4), Some(6)],
-            "ask_price_2" => vec![Option::<i64>::None, None, None, None, None, None, None, None],
             "ask_qty_1" => vec![None, Some(6), Some(6), Some(6), Some(6), Some(5), Some(4), Some(6)],
+            "bid_price_2" => vec![Option::<i64>::None, None, None, None, None, None, None, None],
+            "bid_qty_2" => vec![Option::<i64>::None, None, None, None, None, None, None, None],
+            "ask_price_2" => vec![Option::<i64>::None, None, None, None, None, None, None, None],
             "ask_qty_2" => vec![Option::<i64>::None, None, None, None, None, None, None, None],
         }.unwrap();
 
