@@ -162,27 +162,33 @@ impl<
     }
 }
 
-pub struct PriceUpdateIterator<'a> {
-    is_bid: Box<dyn Iterator<Item = Option<bool>> + 'a>,
-    price: Box<dyn Iterator<Item = Option<i64>> + 'a>,
-    quantity: Box<dyn Iterator<Item = Option<i64>> + 'a>,
+pub struct PriceUpdateIterator<IsBid, Px, Qty> {
+    is_bid: IsBid,
+    price: Px,
+    quantity: Qty,
 }
 
-impl<'a> PriceUpdateIterator<'a> {
-    pub fn new(
-        is_bid: impl Iterator<Item = Option<bool>> + 'a,
-        price: impl Iterator<Item = Option<i64>> + 'a,
-        quantity: impl Iterator<Item = Option<i64>> + 'a,
-    ) -> Self {
+impl<IsBid, Px, Qty> PriceUpdateIterator<IsBid, Px, Qty>
+where
+    IsBid: Iterator<Item = Option<bool>>,
+    Px: Iterator<Item = Option<i64>>,
+    Qty: Iterator<Item = Option<i64>>,
+{
+    pub fn new(is_bid: IsBid, price: Px, quantity: Qty) -> Self {
         PriceUpdateIterator {
-            is_bid: Box::new(is_bid),
-            price: Box::new(price),
-            quantity: Box::new(quantity),
+            is_bid,
+            price,
+            quantity,
         }
     }
 }
 
-impl Iterator for PriceUpdateIterator<'_> {
+impl<IsBid, Px, Qty> Iterator for PriceUpdateIterator<IsBid, Px, Qty>
+where
+    IsBid: Iterator<Item = Option<bool>>,
+    Px: Iterator<Item = Option<i64>>,
+    Qty: Iterator<Item = Option<i64>>,
+{
     type Item = Result<PriceUpdate<i64, i64>, UpdateMissingValueError>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -202,27 +208,33 @@ impl Iterator for PriceUpdateIterator<'_> {
     }
 }
 
-pub struct PriceMutationIterator<'a> {
-    is_bid: Box<dyn Iterator<Item = Option<bool>> + 'a>,
-    price: Box<dyn Iterator<Item = Option<i64>> + 'a>,
-    quantity: Box<dyn Iterator<Item = Option<i64>> + 'a>,
+pub struct PriceMutationIterator<IsBid, Px, Qty> {
+    is_bid: IsBid,
+    price: Px,
+    quantity: Qty,
 }
 
-impl<'a> PriceMutationIterator<'a> {
-    pub fn new(
-        is_bid: impl Iterator<Item = Option<bool>> + 'a,
-        price: impl Iterator<Item = Option<i64>> + 'a,
-        quantity: impl Iterator<Item = Option<i64>> + 'a,
-    ) -> Self {
+impl<IsBid, Px, Qty> PriceMutationIterator<IsBid, Px, Qty>
+where
+    IsBid: Iterator<Item = Option<bool>>,
+    Px: Iterator<Item = Option<i64>>,
+    Qty: Iterator<Item = Option<i64>>,
+{
+    pub fn new(is_bid: IsBid, price: Px, quantity: Qty) -> Self {
         PriceMutationIterator {
-            is_bid: Box::new(is_bid),
-            price: Box::new(price),
-            quantity: Box::new(quantity),
+            is_bid,
+            price,
+            quantity,
         }
     }
 }
 
-impl Iterator for PriceMutationIterator<'_> {
+impl<IsBid, Px, Qty> Iterator for PriceMutationIterator<IsBid, Px, Qty>
+where
+    IsBid: Iterator<Item = Option<bool>>,
+    Px: Iterator<Item = Option<i64>>,
+    Qty: Iterator<Item = Option<i64>>,
+{
     type Item = Result<PriceMutation<i64, i64>, UpdateMissingValueError>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -242,33 +254,41 @@ impl Iterator for PriceMutationIterator<'_> {
     }
 }
 
-pub struct PriceMutationWithModifyIterator<'a> {
-    is_bid: Box<dyn Iterator<Item = Option<bool>> + 'a>,
-    price: Box<dyn Iterator<Item = Option<i64>> + 'a>,
-    quantity: Box<dyn Iterator<Item = Option<i64>> + 'a>,
-    prev_price: Box<dyn Iterator<Item = Option<i64>> + 'a>,
-    prev_quantity: Box<dyn Iterator<Item = Option<i64>> + 'a>,
+pub struct PriceMutationWithModifyIterator<IsBid, Px, Qty, PrevPx, PrevQty> {
+    is_bid: IsBid,
+    price: Px,
+    quantity: Qty,
+    prev_price: PrevPx,
+    prev_quantity: PrevQty,
 }
 
-impl<'a> PriceMutationWithModifyIterator<'a> {
-    pub fn new(
-        is_bid: impl Iterator<Item = Option<bool>> + 'a,
-        price: impl Iterator<Item = Option<i64>> + 'a,
-        quantity: impl Iterator<Item = Option<i64>> + 'a,
-        prev_price: impl Iterator<Item = Option<i64>> + 'a,
-        prev_quantity: impl Iterator<Item = Option<i64>> + 'a,
-    ) -> Self {
+impl<IsBid, Px, Qty, PrevPx, PrevQty> PriceMutationWithModifyIterator<IsBid, Px, Qty, PrevPx, PrevQty>
+where
+    IsBid: Iterator<Item = Option<bool>>,
+    Px: Iterator<Item = Option<i64>>,
+    Qty: Iterator<Item = Option<i64>>,
+    PrevPx: Iterator<Item = Option<i64>>,
+    PrevQty: Iterator<Item = Option<i64>>,
+{
+    pub fn new(is_bid: IsBid, price: Px, quantity: Qty, prev_price: PrevPx, prev_quantity: PrevQty) -> Self {
         PriceMutationWithModifyIterator {
-            is_bid: Box::new(is_bid),
-            price: Box::new(price),
-            quantity: Box::new(quantity),
-            prev_price: Box::new(prev_price),
-            prev_quantity: Box::new(prev_quantity),
+            is_bid,
+            price,
+            quantity,
+            prev_price,
+            prev_quantity,
         }
     }
 }
 
-impl Iterator for PriceMutationWithModifyIterator<'_> {
+impl<IsBid, Px, Qty, PrevPx, PrevQty> Iterator for PriceMutationWithModifyIterator<IsBid, Px, Qty, PrevPx, PrevQty>
+where
+    IsBid: Iterator<Item = Option<bool>>,
+    Px: Iterator<Item = Option<i64>>,
+    Qty: Iterator<Item = Option<i64>>,
+    PrevPx: Iterator<Item = Option<i64>>,
+    PrevQty: Iterator<Item = Option<i64>>,
+{
     type Item = Result<PriceMutationWithModify<i64, i64>, UpdateMissingValueError>;
 
     fn next(&mut self) -> Option<Self::Item> {

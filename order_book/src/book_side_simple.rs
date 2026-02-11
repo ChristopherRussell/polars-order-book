@@ -4,7 +4,11 @@ use order_book_core::book_side_ops::{PricePointMutationOps, PricePointMutationOp
 use order_book_core::price_level::{self, AskPrice, BidPrice, PriceLike, QuantityLike};
 use order_book_derive::BookSide;
 use std::fmt::Debug;
-use tracing::{debug, instrument};
+
+#[cfg(not(feature = "tracing"))]
+macro_rules! debug { ($($arg:tt)*) => {{}}; }
+#[cfg(feature = "tracing")]
+use tracing::debug;
 
 use order_book_core;
 #[derive(BookSide)]
@@ -54,13 +58,13 @@ impl<Px: price_level::Price, Qty: QuantityLike> Debug for SimpleBookSide<Px, Qty
 impl<Px: price_level::Price, Qty: QuantityLike> PricePointMutationOps<Px, Qty>
     for SimpleBookSide<Px, Qty>
 {
-    #[instrument]
+    #[cfg_attr(feature = "tracing", tracing::instrument)]
     #[inline]
     fn add_qty(&mut self, price: Px, qty: Qty) -> FoundLevelType<Qty> {
         self.find_or_create_level_and_add_qty(price, qty)
     }
 
-    #[instrument]
+    #[cfg_attr(feature = "tracing", tracing::instrument)]
     #[inline]
     fn delete_qty(
         &mut self,

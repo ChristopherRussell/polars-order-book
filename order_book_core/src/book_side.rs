@@ -1,9 +1,12 @@
 use crate::book_side_ops::{LevelError, PricePointMutationOpsError};
 use crate::price_level::{self, QuantityLike};
 use hashbrown::HashMap;
-use itertools::Itertools;
 use std::fmt::Debug;
-use tracing::{debug, instrument};
+
+#[cfg(not(feature = "tracing"))]
+macro_rules! debug { ($($arg:tt)*) => {{}}; }
+#[cfg(feature = "tracing")]
+use tracing::debug;
 
 use crate::price_level::PriceLevel;
 
@@ -38,19 +41,23 @@ pub trait BookSide<Px: price_level::Price, Qty: QuantityLike>: Debug {
 
     #[inline]
     fn nth_best_level(&self, n: usize) -> Option<PriceLevel<Px, Qty>> {
-        let mut sorted = self
+        let mut candidates: Vec<_> = self
             .levels()
             .iter()
-            .sorted_unstable_by_key(|(price, _)| *price)
             .map(|(price, qty)| PriceLevel {
                 price: *price,
                 qty: *qty,
-            });
-        // AskPrice has custom Ord implementation that reverses the ordering, so logic is same as for Bid.
-        sorted.nth_back(n)
+            })
+            .collect();
+        // select_nth_unstable_by partitions so element at `target` is the one that would
+        // appear at that index in a fully sorted array. We want nth from the back (nth best).
+        // AskPrice has custom Ord that reverses ordering, so the same logic works for both sides.
+        let target = candidates.len().checked_sub(n + 1)?;
+        candidates.select_nth_unstable_by(target, |a, b| a.price.cmp(&b.price));
+        Some(candidates[target])
     }
 
-    #[instrument]
+    #[cfg_attr(feature = "tracing", tracing::instrument)]
     #[inline]
     fn find_or_create_level_and_add_qty(&mut self, price: Px, qty: Qty) -> FoundLevelType<Qty> {
         debug!("Adding quantity to book_side");
@@ -69,7 +76,7 @@ pub trait BookSide<Px: price_level::Price, Qty: QuantityLike>: Debug {
         }
     }
 
-    #[instrument]
+    #[cfg_attr(feature = "tracing", tracing::instrument)]
     #[inline]
     fn find_or_create_level_and_set_qty(&mut self, price: Px, qty: Qty) -> FoundLevelType<Qty> {
         debug!("Setting quantity for level");
@@ -86,7 +93,7 @@ pub trait BookSide<Px: price_level::Price, Qty: QuantityLike>: Debug {
         }
     }
 
-    #[instrument]
+    #[cfg_attr(feature = "tracing", tracing::instrument)]
     #[inline]
     fn remove_qty_from_level_and_maybe_delete(
         &mut self,

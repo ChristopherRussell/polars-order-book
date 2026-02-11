@@ -1,7 +1,11 @@
 use std::fmt::Debug;
 
 use order_book_core::price_level::{self, PriceLevel, QuantityLike};
-use tracing::{debug, instrument};
+
+#[cfg(not(feature = "tracing"))]
+macro_rules! debug { ($($arg:tt)*) => {{}}; }
+#[cfg(feature = "tracing")]
+use tracing::debug;
 
 /// Trait for book side operations with top N tracking.
 ///
@@ -75,7 +79,7 @@ impl<Price: price_level::Price, Qty: QuantityLike, const N: usize> NLevels<Price
         self.insert_sort(new_level);
     }
 
-    #[instrument]
+    #[cfg_attr(feature = "tracing", tracing::instrument)]
     pub fn insert_sort(&mut self, new_level: PriceLevel<Price, Qty>) {
         // TODO - investigate optimisation: could be faster to insert at the last non-None entry, so we can
         // rotate a shorter slice.
@@ -101,7 +105,7 @@ impl<Price: price_level::Price, Qty: QuantityLike, const N: usize> NLevels<Price
     /// Replace an existing level with a new level, and re-order so that the array remains sorted.
     /// Assumes that the array is *already sorted*, and ordered from largest to smallest, with Nones
     /// at the right. Also assumes that price_to_replace is in the array.
-    #[instrument]
+    #[cfg_attr(feature = "tracing", tracing::instrument)]
     pub fn replace_sort(
         &mut self,
         price_to_replace: Price,
@@ -123,7 +127,7 @@ impl<Price: price_level::Price, Qty: QuantityLike, const N: usize> NLevels<Price
         debug!("Iterated through levels but did not replace any");
     }
 
-    #[instrument]
+    #[cfg_attr(feature = "tracing", tracing::instrument)]
     pub fn update_qty(&mut self, price: Price, new_qty: Qty) {
         // TODO - optimisation: could check against worst price to avoid iterating over all levels
         for level in self.levels.iter_mut().flatten() {
