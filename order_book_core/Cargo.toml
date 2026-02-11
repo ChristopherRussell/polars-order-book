@@ -11,9 +11,9 @@ default = []
 tracing = ["dep:tracing"]
 
 [dependencies]
-hashbrown = "0.15.2"
+hashbrown = "0.16.1"
 itertools = "0.14.0"
-tracing = { version = "0.1.41", optional = true }
+tracing = { version = "0.1.44", optional = true }
 num = "0.4.3"
-thiserror = "1.0.65"
-anyhow = "1.0.86"
+thiserror = "2.0.18"
+anyhow = "1.0.101"

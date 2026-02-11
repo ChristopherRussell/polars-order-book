@@ -1,6 +1,7 @@
 #![allow(clippy::unit_arg)]
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use itertools::izip;
 
 use order_book::book_side_simple::SimpleBookSide;

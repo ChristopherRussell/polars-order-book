@@ -10,7 +10,7 @@ description = "Procedural macros for the order book library"
 syn = "2"
 quote = "1"
 proc-macro2 = "1"
-hashbrown = "0.15.2"
+hashbrown = "0.16.1"
 
 
 [lib]
